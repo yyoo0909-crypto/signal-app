@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Signal — 말하기 전에, 반응 가능성을 먼저 본다</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- ==================== NAVIGATION ==================== -->
+  <nav class="nav" id="mainNav">
+    <div class="nav-inner">
+      <div class="nav-logo">
+        <span class="logo-dot"></span>
+        <span class="logo-text">Signal</span>
+      </div>
+      <div class="nav-actions">
+        <button class="nav-btn" id="historyNavBtn" onclick="showScreen('history')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+        </button>
+        <button class="nav-btn" id="settingsNavBtn" onclick="showScreen('settings')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M19.07 19.07l-1.41-1.41M4.93 19.07l1.41-1.41M12 2v2M12 20v2M2 12h2M20 12h2"/></svg>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ==================== PARTICLE CANVAS ==================== -->
+  <canvas id="particles" class="particles-canvas"></canvas>
+
+  <!-- ==================== SCREEN: HOME ==================== -->
+  <div class="screen active" id="screen-home">
+    <div class="home-container">
+
+      <!-- Header copy -->
+      <div class="home-header">
+        <div class="header-badge">
+          <span class="badge-dot"></span>
+          <span>signal on</span>
+        </div>
+        <h1 class="home-title">오늘은 뭐가 궁금해서<br>나를 찾았어?</h1>
+        <p class="home-subtitle">편하게 말해줘. 고민도, 선택도, 궁금증도 함께 볼게.</p>
+      </div>
+
+      <!-- Main card -->
+      <div class="main-card">
+
+        <!-- Personal info section -->
+        <div class="personal-section">
+          <div class="section-label">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span>너를 조금 더 잘 읽을게 <em>(선택)</em></span>
+          </div>
+
+          <div class="personal-fields">
+            <div class="field-row">
+              <div class="field-group">
+                <label class="field-label">이름 / 닉네임</label>
+                <input
+                  type="text"
+                  id="inputName"
+                  class="field-input"
+                  placeholder="어떻게 불러줄까?"
+                  maxlength="10"
+                  autocomplete="off"
+                />
+              </div>
+              <div class="field-group gender-group">
+                <label class="field-label">성별</label>
+                <div class="gender-btns" id="genderBtns">
+                  <button type="button" class="gender-btn" data-value="male" onclick="selectGender(this)">남</button>
+                  <button type="button" class="gender-btn" data-value="female" onclick="selectGender(this)">여</button>
+                  <button type="button" class="gender-btn" data-value="other" onclick="selectGender(this)">기타</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="field-row">
+              <div class="field-group">
+                <label class="field-label">생년월일</label>
+                <div class="birth-selects">
+                  <select id="birthYear" class="birth-select" onchange="updateDays()">
+                    <option value="">년도</option>
+                  </select>
+                  <select id="birthMonth" class="birth-select" onchange="updateDays()">
+                    <option value="">월</option>
+                    <option value="1">1월</option><option value="2">2월</option><option value="3">3월</option>
+                    <option value="4">4월</option><option value="5">5월</option><option value="6">6월</option>
+                    <option value="7">7월</option><option value="8">8월</option><option value="9">9월</option>
+                    <option value="10">10월</option><option value="11">11월</option><option value="12">12월</option>
+                  </select>
+                  <select id="birthDay" class="birth-select">
+                    <option value="">일</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <label class="field-label">지금 가장 큰 고민</label>
+              <div class="category-chips" id="categoryChips">
+                <button type="button" class="cat-chip" data-value="love" onclick="selectCategory(this)">💕 연애</button>
+                <button type="button" class="cat-chip" data-value="marriage" onclick="selectCategory(this)">💍 결혼</button>
+                <button type="button" class="cat-chip" data-value="divorce" onclick="selectCategory(this)">💔 이혼·별거</button>
+                <button type="button" class="cat-chip" data-value="family" onclick="selectCategory(this)">🏠 가족</button>
+                <button type="button" class="cat-chip" data-value="friend" onclick="selectCategory(this)">👫 친구</button>
+                <button type="button" class="cat-chip" data-value="relation" onclick="selectCategory(this)">🤝 관계</button>
+                <button type="button" class="cat-chip" data-value="career" onclick="selectCategory(this)">💼 커리어</button>
+                <button type="button" class="cat-chip" data-value="startup" onclick="selectCategory(this)">🚀 창업·사업</button>
+                <button type="button" class="cat-chip" data-value="invest" onclick="selectCategory(this)">📈 투자</button>
+                <button type="button" class="cat-chip" data-value="money" onclick="selectCategory(this)">💰 돈·재정</button>
+                <button type="button" class="cat-chip" data-value="realestate" onclick="selectCategory(this)">🏢 부동산</button>
+                <button type="button" class="cat-chip" data-value="legal" onclick="selectCategory(this)">⚖️ 법률·분쟁</button>
+                <button type="button" class="cat-chip" data-value="debt" onclick="selectCategory(this)">📋 빚·채무</button>
+                <button type="button" class="cat-chip" data-value="health" onclick="selectCategory(this)">🌿 건강</button>
+                <button type="button" class="cat-chip" data-value="mind" onclick="selectCategory(this)">🌙 마음·감정</button>
+                <button type="button" class="cat-chip" data-value="trauma" onclick="selectCategory(this)">🩹 트라우마</button>
+                <button type="button" class="cat-chip" data-value="study" onclick="selectCategory(this)">📚 공부·시험</button>
+                <button type="button" class="cat-chip" data-value="success" onclick="selectCategory(this)">🏆 성공·목표</button>
+                <button type="button" class="cat-chip" data-value="future" onclick="selectCategory(this)">🔭 미래·방향</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Divider -->
+        <div class="card-divider"></div>
+
+        <!-- Question section -->
+        <div class="question-section">
+          <div class="section-label">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <span>지금 네 이야기를 들려줘</span>
+          </div>
+
+          <!-- Quick chips (dynamic) -->
+          <div class="quick-chips" id="quickChips">
+            <button type="button" class="quick-chip" onclick="setQuestion(this.textContent)">그 사람에게 연락해도 될까?</button>
+            <button type="button" class="quick-chip" onclick="setQuestion(this.textContent)">이 관계, 더 가도 될까?</button>
+            <button type="button" class="quick-chip" onclick="setQuestion(this.textContent)">지금 말해도 되는 타이밍일까?</button>
+            <button type="button" class="quick-chip" onclick="setQuestion(this.textContent)">기다리는 게 맞아, 끝내는 게 맞아?</button>
+            <button type="button" class="quick-chip" onclick="setQuestion(this.textContent)">내가 사과하면 받아줄까?</button>
+            <button type="button" class="quick-chip" onclick="setQuestion(this.textContent)">이 선택, 지금 나에게 맞을까?</button>
+          </div>
+
+          <div class="textarea-wrapper">
+            <textarea
+              id="questionInput"
+              class="question-textarea"
+              placeholder="지금 마음속 이야기를 들려줘"
+              rows="4"
+              maxlength="500"
+            ></textarea>
+            <div class="char-count"><span id="charCount">0</span>/500</div>
+          </div>
+
+          <button class="cta-btn" id="analyzeBtn" onclick="startAnalysis()">
+            <span class="cta-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </span>
+            <span>흐름 읽어보기</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Footer hint -->
+      <p class="home-hint">Signal은 당신의 현재 상황에 대한 가능성을 높여줄 수 있어요.<br>지금 이 상황의 흐름을 함께 읽어드릴게요.</p>
+
+    </div>
+  </div>
+
+  <!-- ==================== SCREEN: LOADING ==================== -->
+  <div class="screen" id="screen-loading">
+    <div class="loading-container">
+      <div class="loading-rings">
+        <div class="ring ring-1"></div>
+        <div class="ring ring-2"></div>
+        <div class="ring ring-3"></div>
+        <div class="ring-dot"></div>
+      </div>
+      <p class="loading-name" id="loadingName">흐름을 읽는 중이야...</p>
+      <p class="loading-sub">신호를 분석하고 있어</p>
+    </div>
+  </div>
+
+  <!-- ==================== SCREEN: RESULT ==================== -->
+  <div class="screen" id="screen-result">
+    <div class="result-container">
+
+      <div class="result-header">
+        <button class="back-btn" onclick="showScreen('home')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,18 9,12 15,6"/></svg>
+        </button>
+        <div class="result-badge" id="resultBadge">분석 결과</div>
+      </div>
+
+      <!-- Summary card -->
+      <div class="result-card summary-card">
+        <div class="card-tag">오늘의 한마디</div>
+        <p class="summary-text" id="summaryText">지금 이 흐름, 나쁘지 않아.</p>
+        <p class="summary-sub" id="summarySub">조금 더 가볍게 닿는 쪽이 훨씬 좋아 보여.</p>
+      </div>
+
+      <!-- Signal meters -->
+      <div class="result-card signal-card">
+        <div class="card-tag">시그널 수치</div>
+        <div class="signal-meters">
+          <div class="signal-meter">
+            <div class="signal-header">
+              <div class="signal-info">
+                <div class="signal-icon mint">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22,4 12,14.01 9,11.01"/></svg>
+                </div>
+                <span class="signal-label">가능성</span>
+              </div>
+              <span class="signal-value mint-text" id="acceptValue">0%</span>
+            </div>
+            <div class="signal-bar-bg">
+              <div class="signal-bar mint-bar" id="acceptBar" style="width:0%"></div>
+            </div>
+            <p class="signal-desc" id="acceptDesc">수용 가능성 — 지금 시도해도 될 가능성</p>
+          </div>
+
+          <div class="signal-meter">
+            <div class="signal-header">
+              <div class="signal-info">
+                <div class="signal-icon coral">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                </div>
+                <span class="signal-label">리스크</span>
+              </div>
+              <span class="signal-value coral-text" id="riskValue">0%</span>
+            </div>
+            <div class="signal-bar-bg">
+              <div class="signal-bar coral-bar" id="riskBar" style="width:0%"></div>
+            </div>
+            <p class="signal-desc" id="riskDesc">관계 손상 위험 — 역효과 가능성</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Flow analysis -->
+      <div class="result-card">
+        <div class="card-tag">흐름 해석</div>
+        <p class="flow-text" id="flowText">상대가 완전히 닫혀 있는 건 아닌데, 지금 바로 결론을 내려고 하면 부담이 커질 수 있어요.</p>
+      </div>
+
+      <!-- Next move: Fortune Cookie -->
+      <div class="result-card fortune-card">
+        <div class="card-tag">다음 한 수</div>
+        <div class="fortune-cookie" id="fortuneCookie">
+          <div class="fortune-icon">🥠</div>
+          <p class="fortune-text" id="fortuneText">지금 이 흐름, 한 발 더 나아가도 괜찮아.</p>
+        </div>
+      </div>
+
+      <!-- Signal card -->
+      <div class="result-card signal-oracle-card">
+        <div class="card-tag">오늘의 시그널 카드</div>
+
+        <!-- 버튼 영역: 카드가 열리기 전에만 표시 -->
+        <div class="oracle-trigger" id="oracleTrigger">
+          <p class="oracle-trigger-desc">오늘 너를 위한 시그널 카드가 준비됐어<br><span class="oracle-trigger-sub">지금 가능성을 올려줄 카드를 골라봐 ✦</span></p>
+          <button class="oracle-open-btn" onclick="openOracleCards()">
+            <span class="oracle-btn-shimmer"></span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+            ✦ 나의 가능성 카드 뽑기
+          </button>
+        </div>
+
+        <!-- 카드 영역: 버튼 클릭 후 표시 -->
+        <div class="oracle-cards-wrap" id="oracleCardsWrap" style="display:none;">
+          <p class="oracle-prompt">3장 중 끌리는 카드 1장을 골라봐<br><span class="oracle-prompt-sub">직감으로 선택한 카드가 지금 너의 가능성을 높여줄 거야</span></p>
+          <div class="oracle-cards" id="oracleCards">
+            <!-- Rendered by JS -->
+          </div>
+          <p class="oracle-hint" id="oracleHint">카드를 하나 골라봐 ✦</p>
+        </div>
+      </div>
+
+      <!-- Chat section -->
+      <div class="chat-section" id="chatSection">
+        <div class="chat-header">
+          <span class="chat-logo-dot"></span>
+          <span class="chat-title">Signal에게 더 물어봐</span>
+        </div>
+        <div class="chat-messages" id="chatMessages">
+          <div class="chat-msg signal-msg" id="chatIntro">
+            <div class="msg-bubble">분석 결과를 보고 더 궁금한 게 있으면 말해줘. 뭐든 같이 볼게.</div>
+          </div>
+        </div>
+        <div class="chat-input-row">
+          <input
+            type="text"
+            id="chatInput"
+            class="chat-input"
+            placeholder="더 궁금한 거 물어봐..."
+            maxlength="200"
+            autocomplete="off"
+            onkeydown="handleChatKey(event)"
+          />
+          <button class="chat-send-btn" onclick="sendChat()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22,2 15,22 11,13 2,9"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="result-actions">
+        <button class="action-btn save-btn" onclick="saveResult()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg>
+          저장하기
+        </button>
+        <button class="action-btn new-btn" onclick="newQuestion()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1,4 1,10 7,10"/><path d="M3.51 15a9 9 0 1 0 .49-3.47"/></svg>
+          새 질문
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ==================== SCREEN: HISTORY ==================== -->
+  <div class="screen" id="screen-history">
+    <div class="page-container">
+      <div class="page-header">
+        <button class="back-btn" onclick="showScreen('home')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,18 9,12 15,6"/></svg>
+        </button>
+        <h2 class="page-title">지난 흐름</h2>
+      </div>
+      <div class="history-list" id="historyList">
+        <div class="empty-state">
+          <div class="empty-icon">🌙</div>
+          <p class="empty-text">아직 저장된 흐름이 없어</p>
+          <p class="empty-sub">질문을 입력하고 분석을 저장해봐</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SCREEN: SETTINGS ==================== -->
+  <div class="screen" id="screen-settings">
+    <div class="page-container">
+      <div class="page-header">
+        <button class="back-btn" onclick="showScreen('home')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,18 9,12 15,6"/></svg>
+        </button>
+        <h2 class="page-title">설정</h2>
+      </div>
+
+      <!-- Profile section -->
+      <div class="settings-section">
+        <div class="settings-label">내 정보</div>
+        <div class="settings-card">
+          <div class="profile-display" id="profileDisplay">
+            <div class="profile-avatar" id="profileAvatar">?</div>
+            <div class="profile-info">
+              <div class="profile-name" id="profileName">이름을 설정해봐</div>
+              <div class="profile-detail" id="profileDetail">정보 없음</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Premium section -->
+      <div class="settings-section">
+        <div class="settings-label">Signal Plus</div>
+        <div class="premium-card">
+          <div class="premium-header">
+            <div>
+              <div class="premium-title">Signal Plus</div>
+              <div class="premium-desc">더 깊은 해석과 무제한 기록</div>
+            </div>
+            <div class="premium-badge-tag">무료 체험</div>
+          </div>
+          <ul class="premium-features">
+            <li><span class="feat-check">✓</span> 무제한 질문 분석</li>
+            <li><span class="feat-check">✓</span> 카테고리별 심화 해석</li>
+            <li><span class="feat-check">✓</span> 기록 무제한 저장</li>
+            <li><span class="feat-check">✓</span> 지난 흐름 비교 분석</li>
+            <li><span class="feat-check">✓</span> 주간 패턴 리포트</li>
+          </ul>
+          <div class="premium-plans">
+            <div class="plan-option selected" id="monthlyPlan" onclick="selectPlan('monthly')">
+              <div class="plan-name">월간</div>
+              <div class="plan-price">₩9,900<span>/월</span></div>
+            </div>
+            <div class="plan-option" id="yearlyPlan" onclick="selectPlan('yearly')">
+              <div class="plan-name">연간 <span class="plan-badge">50% 절약</span></div>
+              <div class="plan-price">₩59,000<span>/년</span></div>
+            </div>
+          </div>
+          <button class="premium-cta" onclick="startTrial()">7일 무료 체험 시작</button>
+          <p class="premium-note">체험 기간 이후 자동 결제 · 언제든지 해지 가능</p>
+        </div>
+      </div>
+
+      <!-- App info section -->
+      <div class="settings-section">
+        <div class="settings-label">앱 안내</div>
+        <div class="settings-card">
+          <div class="settings-item" onclick="showModal('privacy')">
+            <span>개인정보 처리방침</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg>
+          </div>
+          <div class="settings-item" onclick="showModal('terms')">
+            <span>이용약관</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg>
+          </div>
+          <div class="settings-item" onclick="showModal('ai')">
+            <span>AI 한계 안내</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg>
+          </div>
+          <div class="settings-item danger-item" onclick="clearData()">
+            <span>데이터 초기화</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <p class="app-version">Signal v1.0.0 · 이 앱의 결과는 참고용이며 전문적인 조언을 대체하지 않아요.</p>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL ==================== -->
+  <div class="modal-overlay" id="modalOverlay" onclick="hideModal()">
+    <div class="modal-box" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modalTitle">제목</h3>
+        <button class="modal-close" onclick="hideModal()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+  <!-- ==================== BOTTOM TAB BAR ==================== -->
+  <nav class="bottom-nav" id="bottomNav">
+    <button class="tab-btn active" id="tab-home" onclick="switchTab('home')">
+      <span class="tab-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9,22 9,12 15,12 15,22"/>
+        </svg>
+      </span>
+      <span class="tab-label">홈</span>
+    </button>
+
+    <button class="tab-btn" id="tab-history" onclick="switchTab('history')">
+      <span class="tab-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12,6 12,12 16,14"/>
+        </svg>
+      </span>
+      <span class="tab-label">기록</span>
+    </button>
+
+    <button class="tab-btn" id="tab-chat" onclick="switchTab('chat')">
+      <span class="tab-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+      </span>
+      <span class="tab-label">대화</span>
+    </button>
+  </nav>
+
+  <!-- ==================== SCREEN: CHAT (단독) ==================== -->
+  <div class="screen" id="screen-chat">
+    <div class="chat-page-container">
+      <div class="chat-page-header">
+        <div class="chat-page-logo">
+          <span class="logo-dot"></span>
+          <span>Signal</span>
+        </div>
+        <p class="chat-page-sub">분석 결과를 기반으로 대화해봐</p>
+      </div>
+
+      <div class="chat-page-messages" id="chatPageMessages">
+        <div class="chat-msg signal-msg">
+          <div class="msg-bubble">먼저 홈에서 고민을 분석하면,<br>여기서 더 깊은 이야기를 나눌 수 있어.</div>
+        </div>
+      </div>
+
+      <div class="chat-page-input-row">
+        <input
+          type="text"
+          id="chatPageInput"
+          class="chat-input"
+          placeholder="Signal에게 물어봐..."
+          maxlength="200"
+          autocomplete="off"
+          onkeydown="handleChatPageKey(event)"
+        />
+        <button class="chat-send-btn" onclick="sendChatPage()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22,2 15,22 11,13 2,9"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== TOAST ==================== -->
+  <div class="toast" id="toast"></div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
