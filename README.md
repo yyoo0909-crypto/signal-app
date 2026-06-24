@@ -201,6 +201,8 @@ risk   범위: 8  ~ 80%
 - [x] 피드백 버튼 (👍👎) ✅ v1.4.0
 - [x] Google Analytics 연동 ✅ v1.5.0
 - [x] Supabase 데이터 저장 ✅ v1.5.0
+- [x] Signal Memory — 인생 기억 엔진 ✅ v1.6.0
+- [ ] Signal Memory — 서버 동기화 (현재 로컬스토리지)
 - [ ] 영어 버전 글로벌 확장
 - [ ] 주간 패턴 리포트
 - [ ] 지난 흐름 비교 분석
@@ -224,6 +226,32 @@ Signal은 다음 용도의 사용을 엄격히 금지합니다:
 ---
 
 ## 📋 파일 수정 이력
+
+### v1.6.0 — Signal Memory (인생 기억 엔진)
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| `index.html` | 메모리 탭 버튼 추가 (하단 5번째), `screen-memory` 화면 추가 (AI 코멘트 / 감정 변화 / 반복 패턴 / 타임라인 / 통계) |
+| `css/style.css` | Signal Memory 전체 스타일 추가 (memory-container, emotion-card, pattern-item, timeline, stats-row 등) |
+| `js/app.js` | `saveMemoryEntry()`, `renderMemoryScreen()`, `getMemoryContext()`, `showMemoryRecallIfNeeded()` 등 Memory 엔진 추가. 분석 시 자동 저장, 채팅 시 Memory 배너 표시 |
+
+**Memory 저장 구조 (localStorage `signal_memory_v1`)**
+
+```json
+{
+  "id": "1719000000000",
+  "created_at": 1719000000000,
+  "category": "invest",
+  "question": "지금 투자해도 될까?",
+  "accept": 67,
+  "risk": 31,
+  "emotion": { "anxiety": 42, "confidence": 58, "hope": 63, "action": 71 },
+  "keywords": ["투자"],
+  "decision_type": "invest"
+}
+```
+
+---
 
 ### v1.5.0 — 분석/피드백 데이터 저장 (GA4 + Supabase)
 

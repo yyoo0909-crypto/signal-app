@@ -519,13 +519,16 @@ function showScreen(name) {
   if (name === 'settings') { updateProfileDisplay(); updateTabActive(null); }
   if (name === 'home')    updateTabActive('home');
   if (name === 'result')  updateTabActive(null);
-  if (name === 'chat')    updateTabActive('chat');
+  if (name === 'chat')    { updateTabActive('chat'); setTimeout(showMemoryRecallIfNeeded, 300); }
+  if (name === 'memory')  { renderMemoryScreen(); updateTabActive('memory'); }
 }
 
 // ==================== BOTTOM TAB ====================
 function switchTab(tab) {
   if (tab === 'home') {
     showScreen('home');
+  } else if (tab === 'memory') {
+    showScreen('memory');
   } else if (tab === 'history') {
     showScreen('history');
   } else if (tab === 'chat') {
@@ -701,6 +704,9 @@ function startAnalysis() {
     requestAnimationFrame(() => {   // DOM 표시 후 렌더링
       renderResult(result);
     });
+
+    // Signal Memory 자동 저장 (분석할 때마다 기록)
+    saveMemoryEntry(result);
 
     // Supabase: 분석 결과 저장 (비동기, 실패해도 앱 동작 무관)
     _sbInsert('signal_results', {
@@ -905,6 +911,10 @@ function saveResult() {
   };
   state.history.unshift(item);
   saveHistory();
+
+  // Signal Memory 자동 저장
+  saveMemoryEntry(r);
+
   showToast('✨ 흐름이 저장됐어!');
   document.querySelector('.save-btn').disabled = true;
   document.querySelector('.save-btn').style.opacity = '0.5';
@@ -5622,6 +5632,427 @@ function submitFeedback(type) {
     risk:          parseInt(r.risk)   || 0,
     feedback_type: type,
   });
+}
+
+// ======================================================================================
+// ✦ SIGNAL MEMORY — 인생 기억 엔진
+// ======================================================================================
+
+/**
+ * Memory 항목 구조:
+ * {
+ *   id:         string (timestamp),
+ *   created_at: number (ms),
+ *   category:   string,
+ *   question:   string,
+ *   accept:     number,
+ *   risk:       number,
+ *   summary:    string,
+ *   emotion: {
+ *     anxiety:    number (0~100),
+ *     confidence: number,
+ *     hope:       number,
+ *     action:     number,   // 행동 의지
+ *   },
+ *   decision_type: string,
+ *   keywords:   string[],
+ * }
+ */
+
+const MEMORY_KEY = 'signal_memory_v1';
+const MEMORY_MAX = 200;
+
+// ── 저장/로드 ──────────────────────────────────────────────────
+function _memLoad() {
+  try {
+    return JSON.parse(localStorage.getItem(MEMORY_KEY) || '[]');
+  } catch { return []; }
+}
+
+function _memSave(items) {
+  localStorage.setItem(MEMORY_KEY, JSON.stringify(items.slice(0, MEMORY_MAX)));
+}
+
+// ── 분석 결과에서 감정 자동 추출 ──────────────────────────────
+function _extractEmotion(result, question) {
+  const q    = (question || '').toLowerCase();
+  const acc  = parseInt(result.accept) || 50;
+  const risk = parseInt(result.risk)   || 30;
+
+  // 키워드 기반 감정 추정
+  const anxietyKw  = /걱정|불안|두렵|무서|망설|어떡|어떻게|막막|힘들|모르/.test(q);
+  const hopeKw     = /기대|희망|될까|가능|하고 싶|해보고|도전|설레/.test(q);
+  const actionKw   = /해야|결정|선택|지금|바로|움직|시작|실행/.test(q);
+  const confKw     = /자신|확신|믿|잘 될|괜찮|맞을까/.test(q);
+
+  return {
+    anxiety:    Math.min(100, Math.max(0, (100 - acc) * 0.7 + (anxietyKw ? 20 : 0) + risk * 0.3)),
+    confidence: Math.min(100, Math.max(0, acc * 0.6 + (confKw ? 20 : 0) - risk * 0.2)),
+    hope:       Math.min(100, Math.max(0, acc * 0.5 + (hopeKw ? 25 : 0))),
+    action:     Math.min(100, Math.max(0, acc * 0.4 + (actionKw ? 30 : 0) + (100 - risk) * 0.2)),
+  };
+}
+
+// ── 키워드 추출 ────────────────────────────────────────────────
+function _extractKeywords(question) {
+  const kws = [];
+  const checks = {
+    '투자':   /투자|주식|코인|펀드|etf/i,
+    '이직':   /이직|직장|회사|퇴사|취업/i,
+    '연애':   /연애|좋아하|고백|사귀|헤어|이별|재회/i,
+    '창업':   /창업|사업|스타트업|대표|투자유치/i,
+    '돈':     /돈|빚|대출|재정|수입|월급/i,
+    '가족':   /가족|부모|엄마|아빠|형제|자녀/i,
+    '건강':   /건강|병원|아프|치료|수술/i,
+    '공부':   /공부|시험|자격증|대학|성적/i,
+    '부동산': /부동산|집|아파트|전세|월세/i,
+    '마음':   /우울|불안|외로|힘들|감정|마음/i,
+  };
+  for (const [kw, re] of Object.entries(checks)) {
+    if (re.test(question)) kws.push(kw);
+  }
+  return kws;
+}
+
+// ── 메모리 항목 생성 & 저장 ────────────────────────────────────
+function saveMemoryEntry(result) {
+  const q       = state.question || '';
+  const emotion = _extractEmotion(result, q);
+  const keywords = _extractKeywords(q);
+
+  const entry = {
+    id:          String(Date.now()),
+    created_at:  Date.now(),
+    category:    result.cat      || state.category || 'unknown',
+    question:    q.slice(0, 200),
+    accept:      parseInt(result.accept) || 0,
+    risk:        parseInt(result.risk)   || 0,
+    summary:     result.summaryText      || '',
+    emotion,
+    keywords,
+    decision_type: result.cat || 'unknown',
+  };
+
+  const items = _memLoad();
+  items.unshift(entry);  // 최신이 앞에
+  _memSave(items);
+
+  return entry;
+}
+
+// ── 반복 패턴 감지 ────────────────────────────────────────────
+function _detectPatterns(items) {
+  const catCount = {};
+  const kwCount  = {};
+
+  items.forEach(it => {
+    catCount[it.category] = (catCount[it.category] || 0) + 1;
+    (it.keywords || []).forEach(kw => {
+      kwCount[kw] = (kwCount[kw] || 0) + 1;
+    });
+  });
+
+  // 2회 이상 반복된 것만
+  const patterns = [];
+  for (const [cat, cnt] of Object.entries(catCount)) {
+    if (cnt >= 2) patterns.push({ type: 'category', key: cat, count: cnt });
+  }
+  for (const [kw, cnt] of Object.entries(kwCount)) {
+    if (cnt >= 2) patterns.push({ type: 'keyword', key: kw, count: cnt });
+  }
+
+  // 30일 이내 동일 카테고리
+  const now    = Date.now();
+  const recent = items.filter(it => now - it.created_at < 30 * 86400 * 1000);
+  const recentCats = {};
+  recent.forEach(it => { recentCats[it.category] = (recentCats[it.category] || 0) + 1; });
+
+  patterns.sort((a, b) => b.count - a.count);
+  return { patterns, recentCats };
+}
+
+// ── 감정 변화 계산 ─────────────────────────────────────────────
+function _calcEmotionTrend(items) {
+  if (items.length < 2) return null;
+
+  const old   = items.slice(-Math.min(3, items.length));   // 오래된 것들
+  const fresh = items.slice(0, Math.min(3, items.length)); // 최신 것들
+
+  const avg = (arr, key) => arr.reduce((s, it) => s + (it.emotion?.[key] || 0), 0) / arr.length;
+
+  return {
+    anxiety:    { old: Math.round(avg(old, 'anxiety')),    now: Math.round(avg(fresh, 'anxiety')) },
+    confidence: { old: Math.round(avg(old, 'confidence')), now: Math.round(avg(fresh, 'confidence')) },
+    hope:       { old: Math.round(avg(old, 'hope')),       now: Math.round(avg(fresh, 'hope')) },
+    action:     { old: Math.round(avg(old, 'action')),     now: Math.round(avg(fresh, 'action')) },
+  };
+}
+
+// ── AI 코멘트 생성 ─────────────────────────────────────────────
+function _generateMemoryComment(items, trend, patterns) {
+  const nn    = state.name ? state.name.split(' ')[0] : '너';
+  const total = items.length;
+  const cats  = [...new Set(items.map(it => CATEGORIES[it.category]?.label || it.category))];
+  const topPat = patterns.patterns[0];
+
+  if (total === 1) {
+    return `${nn}, 오늘 첫 기억이 저장됐어. 앞으로 Signal이 너의 변화를 함께 기억할게.`;
+  }
+
+  if (total < 5) {
+    const avgAcc = Math.round(items.reduce((s, it) => s + it.accept, 0) / total);
+    return `${nn}, 지금까지 ${total}번의 고민을 함께 봤어. 평균 가능성은 ${avgAcc}%야. 더 많은 이야기를 나눌수록 Signal이 더 정확하게 흐름을 읽을 수 있어.`;
+  }
+
+  // 감정 변화 언급
+  if (trend) {
+    const anxDelta = trend.anxiety.now - trend.anxiety.old;
+    const actDelta = trend.action.now  - trend.action.old;
+
+    if (anxDelta < -10 && actDelta > 10) {
+      return `${nn}, 최근 ${total}번의 흐름을 보면 불안이 줄고 실행 의지가 올라오고 있어. ${topPat ? topPat.key + ' 관련 고민이 ' + topPat.count + '번 반복됐는데,' : ''} 방향이 조금씩 잡혀가는 것 같아.`;
+    }
+    if (anxDelta > 10) {
+      return `${nn}, 최근 들어 불안 지수가 높아지고 있어. ${cats.slice(0, 2).join('·')} 관련 고민이 반복되고 있는데, 지금 가장 무거운 게 뭔지 한번 꺼내봐.`;
+    }
+    if (trend.hope.now > trend.hope.old + 10) {
+      return `${nn}, 처음보다 기대감이 올라오고 있어. ${total}번의 고민 중에 흐름이 조금씩 열리는 쪽으로 가고 있는 게 보여.`;
+    }
+  }
+
+  // 반복 패턴 언급
+  if (topPat && topPat.count >= 3) {
+    const catLabel = CATEGORIES[topPat.key]?.label || topPat.key;
+    return `${nn}, Signal이 보기에 ${catLabel} 관련 고민이 ${topPat.count}번 반복되고 있어. 해결된 것 같아도 다시 돌아오는 걸 보면, 아직 근본적인 부분이 남아있는 것 같아.`;
+  }
+
+  return `${nn}, 지금까지 ${total}번의 고민을 기억하고 있어. ${cats.slice(0,3).join('·')} 등 다양한 흐름을 함께 봤어. Signal은 계속 너의 변화를 읽고 있어.`;
+}
+
+// ── Memory 화면 렌더링 ─────────────────────────────────────────
+function renderMemoryScreen() {
+  const items   = _memLoad();
+  const emptyEl = document.getElementById('memoryEmpty');
+  const contEl  = document.getElementById('memoryContent');
+
+  if (!items.length) {
+    if (emptyEl) emptyEl.style.display = '';
+    if (contEl)  contEl.style.display  = 'none';
+    return;
+  }
+
+  if (emptyEl) emptyEl.style.display = 'none';
+  if (contEl)  contEl.style.display  = '';
+
+  const trend    = _calcEmotionTrend(items);
+  const { patterns, recentCats } = _detectPatterns(items);
+
+  // AI 코멘트
+  const aiComment = document.getElementById('memoryAiComment');
+  if (aiComment) aiComment.textContent = _generateMemoryComment(items, trend, { patterns });
+
+  // 감정 변화 카드
+  _renderEmotionGrid(trend);
+
+  // 반복 패턴
+  _renderPatternList(patterns);
+
+  // 타임라인
+  _renderTimeline(items);
+
+  // 통계
+  _renderStats(items);
+
+  // 서브타이틀 업데이트
+  const sub = document.getElementById('memorySubtitle');
+  if (sub) {
+    const days = items.length >= 2
+      ? Math.round((items[0].created_at - items[items.length - 1].created_at) / 86400000)
+      : 0;
+    sub.textContent = days > 0
+      ? `${days}일간의 흐름을 기억하고 있어 · ${items.length}개의 기억`
+      : `${items.length}개의 기억을 보관 중이야`;
+  }
+}
+
+function _renderEmotionGrid(trend) {
+  const grid = document.getElementById('memoryEmotionGrid');
+  if (!grid) return;
+
+  if (!trend) {
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--text-dim);font-size:13px;padding:20px 0;">기억이 2개 이상 쌓이면 감정 변화가 보여.</div>`;
+    return;
+  }
+
+  const emotions = [
+    { key: 'anxiety',    label: '불안',   color: '#F87171', reverse: true  },
+    { key: 'confidence', label: '자신감', color: '#6EE7D8', reverse: false },
+    { key: 'hope',       label: '기대감', color: '#A78BFA', reverse: false },
+    { key: 'action',     label: '실행의지', color: '#FCD34D', reverse: false },
+  ];
+
+  grid.innerHTML = emotions.map(em => {
+    const t     = trend[em.key];
+    const delta = t.now - t.old;
+    const improved = em.reverse ? delta < 0 : delta > 0;
+    const deltaStr = delta > 0 ? `+${delta}` : String(delta);
+    const deltaClass = delta === 0 ? 'same' : (improved ? 'up' : 'down');
+    const barColor = improved || delta === 0 ? em.color : '#F87171';
+
+    return `
+      <div class="memory-emotion-card">
+        <div class="memory-emotion-label">${em.label}</div>
+        <div class="memory-emotion-bar-wrap">
+          <div class="memory-emotion-bar" style="width:${t.now}%;background:${barColor};"></div>
+        </div>
+        <div class="memory-emotion-values">
+          <span class="memory-emotion-old">${t.old}%</span>
+          <span class="memory-emotion-delta ${deltaClass}">${deltaStr}</span>
+          <span class="memory-emotion-new">${t.now}%</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function _renderPatternList(patterns) {
+  const el  = document.getElementById('memoryPatternList');
+  const sec = document.getElementById('memoryPatternSection');
+  if (!el) return;
+
+  const topPatterns = patterns.slice(0, 4);
+  if (!topPatterns.length) {
+    if (sec) sec.style.display = 'none';
+    return;
+  }
+  if (sec) sec.style.display = '';
+
+  el.innerHTML = topPatterns.map(p => {
+    const catInfo = CATEGORIES[p.key];
+    const emoji   = catInfo?.emoji || '🔄';
+    const label   = catInfo?.label || p.key;
+    const now     = Date.now();
+
+    return `
+      <div class="memory-pattern-item">
+        <span class="memory-pattern-emoji">${emoji}</span>
+        <div class="memory-pattern-info">
+          <div class="memory-pattern-topic">${label}</div>
+          <div class="memory-pattern-count">총 ${p.count}번 반복됨</div>
+        </div>
+        <span class="memory-pattern-badge">${p.count}회</span>
+      </div>`;
+  }).join('');
+}
+
+function _renderTimeline(items) {
+  const el = document.getElementById('memoryTimeline');
+  if (!el) return;
+
+  const show = items.slice(0, 8); // 최대 8개
+  el.innerHTML = show.map((it, idx) => {
+    const date    = new Date(it.created_at);
+    const dateStr = `${date.getMonth()+1}월 ${date.getDate()}일`;
+    const catInfo = CATEGORIES[it.category];
+    const emoji   = catInfo?.emoji || '📝';
+    const label   = catInfo?.label || it.category;
+    const isOld   = idx >= show.length - 2;
+
+    return `
+      <div class="memory-timeline-item ${isOld ? 'old-item' : ''}">
+        <div class="memory-timeline-date">${dateStr}</div>
+        <div class="memory-timeline-cat">${emoji} ${label}</div>
+        <div class="memory-timeline-question">${it.question ? '"' + it.question.slice(0, 60) + (it.question.length > 60 ? '..."' : '"') : '(질문 없음)'}</div>
+        <div class="memory-timeline-scores">
+          <span class="memory-timeline-score">가능성 <span>${it.accept}%</span></span>
+          <span class="memory-timeline-score">리스크 <span>${it.risk}%</span></span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function _renderStats(items) {
+  const el = document.getElementById('memoryStatsRow');
+  if (!el) return;
+
+  const total   = items.length;
+  const avgAcc  = Math.round(items.reduce((s, it) => s + it.accept, 0) / total);
+  const catSet  = new Set(items.map(it => it.category));
+  const days    = items.length >= 2
+    ? Math.round((items[0].created_at - items[items.length-1].created_at) / 86400000) + 1
+    : 1;
+
+  el.innerHTML = `
+    <div class="memory-stat-card">
+      <div class="memory-stat-num">${total}</div>
+      <div class="memory-stat-label">총 기억</div>
+    </div>
+    <div class="memory-stat-card">
+      <div class="memory-stat-num">${avgAcc}%</div>
+      <div class="memory-stat-label">평균 가능성</div>
+    </div>
+    <div class="memory-stat-card">
+      <div class="memory-stat-num">${catSet.size}</div>
+      <div class="memory-stat-label">탐색한<br>영역</div>
+    </div>`;
+}
+
+// ── Memory 호출 조건 확인 (채팅 연동) ─────────────────────────
+function getMemoryContext() {
+  const items = _memLoad();
+  if (!items.length) return null;
+
+  const now  = Date.now();
+  const cat  = state.category || state.currentResult?.cat;
+  const q    = state.question || '';
+
+  // 조건1: 같은 카테고리 2회 이상
+  const sameCat = items.filter(it => it.category === cat);
+
+  // 조건2: 30일 이내 동일 고민
+  const recent30 = items.filter(it =>
+    now - it.created_at < 30 * 86400 * 1000 && it.category === cat
+  );
+
+  // 조건3: 과거 언급 키워드
+  const pastMention = /예전에도|지난번|또 같은|기억해|전에도|반복|계속/.test(q);
+
+  if (sameCat.length < 2 && !pastMention) return null;
+
+  // Memory 요약 텍스트 생성
+  const nn    = state.name ? state.name.split(' ')[0] : '너';
+  const prev  = sameCat[1] || items[1]; // 가장 최근 이전 기억
+  if (!prev) return null;
+
+  const prevDate  = new Date(prev.created_at);
+  const dateStr   = `${prevDate.getMonth()+1}월 ${prevDate.getDate()}일`;
+  const catLabel  = CATEGORIES[cat]?.label || cat;
+
+  let memText = `${nn}, 지난 ${dateStr}에도 ${catLabel} 관련 고민을 얘기했어. 그때 가능성 ${prev.accept}%가 나왔고`;
+  if (prev.question) memText += `, "${prev.question.slice(0, 40)}..." 이런 상황이었어.`;
+  else               memText += '.';
+
+  if (sameCat.length >= 3) {
+    memText += ` 이 주제로 벌써 ${sameCat.length}번째야.`;
+  }
+
+  return { text: memText, count: sameCat.length, prevEntry: prev };
+}
+
+// ── 채팅 시작 시 Memory 배너 표시 ─────────────────────────────
+function showMemoryRecallIfNeeded() {
+  const ctx = getMemoryContext();
+  if (!ctx) return;
+
+  const messagesEl = document.getElementById('chatPageMessages');
+  if (!messagesEl) return;
+
+  // 이미 배너가 있으면 중복 추가 방지
+  if (messagesEl.querySelector('.memory-recall-banner')) return;
+
+  const banner = document.createElement('div');
+  banner.className = 'memory-recall-banner';
+  banner.innerHTML = `✦ <strong>Signal Memory</strong><br>${ctx.text}`;
+  messagesEl.insertBefore(banner, messagesEl.firstChild.nextSibling);
 }
 
 // ======================================================================================

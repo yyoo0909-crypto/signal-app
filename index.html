@@ -547,6 +547,15 @@
       <span class="tab-label">기록</span>
     </button>
 
+    <button class="tab-btn" id="tab-memory" onclick="switchTab('memory')">
+      <span class="tab-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/><circle cx="18" cy="6" r="3" fill="currentColor" opacity="0.6"/>
+        </svg>
+      </span>
+      <span class="tab-label">메모리</span>
+    </button>
+
     <button class="tab-btn" id="tab-chat" onclick="switchTab('chat')">
       <span class="tab-icon">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -556,6 +565,81 @@
       <span class="tab-label">대화</span>
     </button>
   </nav>
+
+  <!-- ==================== SCREEN: MEMORY ==================== -->
+  <div class="screen" id="screen-memory">
+    <div class="memory-container">
+
+      <!-- 헤더 -->
+      <div class="memory-header">
+        <div class="memory-header-top">
+          <div class="memory-logo">
+            <span class="logo-dot"></span>
+            <span class="memory-title-text">Signal Memory</span>
+          </div>
+          <span class="memory-beta-badge">BETA</span>
+        </div>
+        <p class="memory-subtitle" id="memorySubtitle">Signal은 너의 변화를 기억하고 있어.</p>
+      </div>
+
+      <!-- 데이터 없을 때 -->
+      <div class="memory-empty" id="memoryEmpty">
+        <div class="memory-empty-icon">🧠</div>
+        <p class="memory-empty-title">아직 기억이 없어</p>
+        <p class="memory-empty-desc">홈에서 첫 고민을 분석하면,<br>Signal이 너의 흐름을 기억하기 시작해.</p>
+        <button class="memory-start-btn" onclick="switchTab('home')">첫 고민 분석하기</button>
+      </div>
+
+      <!-- 메모리 콘텐츠 (데이터 있을 때) -->
+      <div class="memory-content" id="memoryContent" style="display:none;">
+
+        <!-- AI 코멘트 카드 -->
+        <div class="memory-ai-card" id="memoryAiCard">
+          <div class="memory-ai-icon">✦</div>
+          <p class="memory-ai-comment" id="memoryAiComment">Signal이 너의 흐름을 분석하고 있어...</p>
+        </div>
+
+        <!-- 감정 변화 트래커 -->
+        <section class="memory-section">
+          <h3 class="memory-section-title">
+            <span class="memory-section-icon">📊</span>
+            감정 변화 흐름
+          </h3>
+          <div class="memory-emotion-grid" id="memoryEmotionGrid">
+            <!-- JS로 렌더 -->
+          </div>
+        </section>
+
+        <!-- 반복 패턴 -->
+        <section class="memory-section" id="memoryPatternSection">
+          <h3 class="memory-section-title">
+            <span class="memory-section-icon">🔄</span>
+            반복되는 고민
+          </h3>
+          <div class="memory-pattern-list" id="memoryPatternList">
+            <!-- JS로 렌더 -->
+          </div>
+        </section>
+
+        <!-- 타임라인 -->
+        <section class="memory-section">
+          <h3 class="memory-section-title">
+            <span class="memory-section-icon">📅</span>
+            인생 타임라인
+          </h3>
+          <div class="memory-timeline" id="memoryTimeline">
+            <!-- JS로 렌더 -->
+          </div>
+        </section>
+
+        <!-- 통계 요약 -->
+        <section class="memory-stats-row" id="memoryStatsRow">
+          <!-- JS로 렌더 -->
+        </section>
+
+      </div>
+    </div>
+  </div>
 
   <!-- ==================== SCREEN: CHAT (단독) ==================== -->
   <div class="screen" id="screen-chat">
