@@ -521,6 +521,8 @@ function showScreen(name) {
   if (name === 'result')  updateTabActive(null);
   if (name === 'chat')    { updateTabActive('chat'); setTimeout(showMemoryRecallIfNeeded, 300); }
   if (name === 'memory')  { renderMemoryScreen(); updateTabActive('memory'); }
+  if (name === 'journey') { renderJourneyScreen(); updateTabActive('journey'); }
+  if (name === 'compass') { renderCompassScreen(); updateTabActive('compass'); }
 }
 
 // ==================== BOTTOM TAB ====================
@@ -529,12 +531,15 @@ function switchTab(tab) {
     showScreen('home');
   } else if (tab === 'memory') {
     showScreen('memory');
+  } else if (tab === 'journey') {
+    showScreen('journey');
+  } else if (tab === 'compass') {
+    showScreen('compass');
   } else if (tab === 'history') {
     showScreen('history');
   } else if (tab === 'chat') {
     showScreen('chat');
     initChatPage();
-    // 입력창 포커스
     setTimeout(() => {
       const inp = document.getElementById('chatPageInput');
       if (inp) inp.focus();
@@ -6073,4 +6078,289 @@ function _resetFeedbackBlock() {
   });
   if (btns)     btns.style.display = '';
   if (done)     done.style.display = 'none';
+}
+
+// ======================================================================================
+// ✦ SIGNAL JOURNEY — 변화 여정 타임라인
+// ======================================================================================
+
+function renderJourneyScreen() {
+  const items   = _memLoad();
+  const emptyEl = document.getElementById('journeyEmpty');
+  const contEl  = document.getElementById('journeyContent');
+
+  if (items.length < 2) {
+    if (emptyEl) emptyEl.style.display = '';
+    if (contEl)  contEl.style.display  = 'none';
+    return;
+  }
+  if (emptyEl) emptyEl.style.display = 'none';
+  if (contEl)  contEl.style.display  = '';
+
+  const trend = _calcEmotionTrend(items);
+  const nn    = state.name ? state.name.split(' ')[0] : '너';
+
+  // 서브타이틀
+  const sub = document.getElementById('journeySubtitle');
+  if (sub) {
+    const days = Math.round((items[0].created_at - items[items.length-1].created_at) / 86400000) + 1;
+    sub.textContent = `${days}일간의 변화 흐름 · ${items.length}개의 기억`;
+  }
+
+  // 감정 추세
+  _renderJourneyTrend(trend);
+
+  // AI 분석
+  _renderJourneyAi(items, trend, nn);
+
+  // 월별 타임라인
+  _renderJourneyTimeline(items);
+}
+
+function _renderJourneyTrend(trend) {
+  const grid = document.getElementById('journeyTrendGrid');
+  if (!grid || !trend) return;
+
+  const emotions = [
+    { key: 'anxiety',    label: '불안',    reverse: true  },
+    { key: 'confidence', label: '자신감',  reverse: false },
+    { key: 'hope',       label: '기대감',  reverse: false },
+    { key: 'action',     label: '실행력',  reverse: false },
+  ];
+
+  grid.innerHTML = emotions.map(em => {
+    const t     = trend[em.key];
+    const delta = t.now - t.old;
+    const improved = em.reverse ? delta < 0 : delta > 0;
+    const arrowClass = delta === 0 ? 'same' : (improved ? 'up' : 'down');
+    const arrow      = delta === 0 ? '→' : (improved ? '▲' : '▼');
+
+    return `
+      <div class="journey-trend-item">
+        <span class="journey-trend-label">${em.label}</span>
+        <div class="journey-trend-values">
+          <span class="journey-trend-old">${t.old}</span>
+          <span class="journey-trend-arrow ${arrowClass}">${arrow}</span>
+          <span class="journey-trend-new">${t.now}</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function _renderJourneyAi(items, trend, nn) {
+  const el = document.getElementById('journeyAiText');
+  if (!el) return;
+
+  const total    = items.length;
+  const cats     = [...new Set(items.map(it => CATEGORIES[it.category]?.label || it.category))];
+  const days     = Math.round((items[0].created_at - items[items.length-1].created_at) / 86400000) + 1;
+  const avgAccOld = Math.round(items.slice(-3).reduce((s,it) => s + it.accept, 0) / Math.min(3, items.length));
+  const avgAccNew = Math.round(items.slice(0, 3).reduce((s,it) => s + it.accept, 0) / Math.min(3, items.length));
+  const accDelta  = avgAccNew - avgAccOld;
+
+  let text = '';
+  if (trend && trend.action.now > trend.action.old + 10 && trend.anxiety.now < trend.anxiety.old) {
+    text = `최근 ${days}일 동안 ${nn}은 불안이 줄고 실행력이 올라오는 방향으로 변화하고 있어. ${cats.slice(0,2).join('·')} 관련 고민이 반복됐는데, 답을 찾으려는 것보다 직접 움직이려는 에너지가 커지고 있어.`;
+  } else if (accDelta > 5) {
+    text = `${days}일간 ${total}번의 고민을 함께 봤어. 처음보다 가능성 지수가 평균 ${accDelta}% 올랐어. ${nn}이 상황을 더 명확하게 보게 된 것 같아.`;
+  } else if (trend && trend.anxiety.now > trend.anxiety.old + 10) {
+    text = `최근 들어 불안 지수가 높아지고 있어. ${cats.slice(0,2).join('·')} 관련 고민이 반복되는 걸 보면, 지금 가장 무거운 게 뭔지 한번 꺼내보는 게 좋을 것 같아.`;
+  } else {
+    text = `${days}일 동안 ${nn}은 ${cats.slice(0,3).join('·')} 등 다양한 흐름을 탐색했어. Signal은 완벽한 준비보다 작은 테스트를 먼저 시도하는 방향으로 ${nn}이 변화하고 있다고 느껴.`;
+  }
+  el.textContent = text;
+}
+
+function _renderJourneyTimeline(items) {
+  const el = document.getElementById('journeyTimeline');
+  if (!el) return;
+
+  // 월별 그룹화
+  const monthMap = {};
+  items.forEach(it => {
+    const d   = new Date(it.created_at);
+    const key = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}`;
+    if (!monthMap[key]) monthMap[key] = [];
+    monthMap[key].push(it);
+  });
+
+  const months = Object.keys(monthMap).sort().reverse(); // 최신 먼저
+
+  el.innerHTML = months.map(month => {
+    const mItems   = monthMap[month];
+    const avgAcc   = Math.round(mItems.reduce((s,it) => s + it.accept, 0) / mItems.length);
+    const avgRisk  = Math.round(mItems.reduce((s,it) => s + it.risk,   0) / mItems.length);
+    const cats     = [...new Set(mItems.map(it => CATEGORIES[it.category]?.label || it.category))];
+    const avgAnx   = Math.round(mItems.reduce((s,it) => s + (it.emotion?.anxiety || 50), 0) / mItems.length);
+    const avgAct   = Math.round(mItems.reduce((s,it) => s + (it.emotion?.action  || 50), 0) / mItems.length);
+
+    // 이벤트 자동 감지
+    const events = [];
+    mItems.forEach(it => {
+      const q = it.question || '';
+      if (/투자유치|vc|벤처|시리즈/i.test(q))   events.push('VC 미팅');
+      if (/런칭|출시|오픈|시작/i.test(q))        events.push('런칭');
+      if (/이직|퇴사|입사/i.test(q))             events.push('커리어 변화');
+      if (/헤어|이별|재회/i.test(q))             events.push('관계 변화');
+      if (/결혼|프로포즈/i.test(q))              events.push('결혼');
+      if (/창업|사업 시작/i.test(q))             events.push('창업');
+    });
+    const uniqEvents = [...new Set(events)];
+
+    return `
+      <div class="journey-month-block">
+        <div class="journey-month-label">${month}</div>
+        <div class="journey-month-card">
+          ${uniqEvents.length ? `<div class="journey-month-events">${uniqEvents.map(e => `<span class="journey-event-tag">${e}</span>`).join('')}</div>` : ''}
+          <div class="journey-month-events" style="margin-bottom:10px;">
+            ${cats.slice(0,3).map(c => `<span class="journey-event-tag" style="background:rgba(110,231,216,0.08);color:var(--mint);border-color:rgba(110,231,216,0.15);">${c}</span>`).join('')}
+          </div>
+          <div class="journey-month-emotions">
+            <span class="journey-month-emotion">가능성 <span>${avgAcc}%</span></span>
+            <span class="journey-month-emotion">불안 <span>${avgAnx}</span></span>
+            <span class="journey-month-emotion">실행력 <span>${avgAct}</span></span>
+            <span class="journey-month-emotion">${mItems.length}개</span>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ======================================================================================
+// ✦ SIGNAL COMPASS — 선택지 방향 분석
+// ======================================================================================
+
+function renderCompassScreen() {
+  // 현재 분석 결과가 있으면 질문 자동 채우기
+  const input = document.getElementById('compassInput');
+  if (input && state.question && !input.value) {
+    input.value = state.question;
+  }
+}
+
+function runCompass() {
+  const input = document.getElementById('compassInput');
+  const q     = input?.value?.trim();
+  if (!q) { showToast('고민을 먼저 입력해줘!'); return; }
+
+  const emptyEl  = document.getElementById('compassEmpty');
+  const resultEl = document.getElementById('compassResult');
+  const qTextEl  = document.getElementById('compassQuestionText');
+  const optionsEl= document.getElementById('compassOptions');
+  const aiEl     = document.getElementById('compassAiComment');
+
+  if (qTextEl)  qTextEl.textContent = q;
+
+  // 옵션 자동 생성
+  const options = _generateCompassOptions(q);
+  if (optionsEl) {
+    optionsEl.innerHTML = options.map((opt, idx) => {
+      const alpha  = ['A', 'B', 'C'][idx];
+      const isBest = idx === options.reduce((bi, o, i) => o.pct > options[bi].pct ? i : bi, 0);
+      return `
+        <div class="compass-option-card ${isBest ? 'best' : ''}">
+          <div class="compass-option-header">
+            <div class="compass-option-label">
+              <span class="compass-option-alpha">${alpha}</span>
+              <span class="compass-option-name">${opt.name}${isBest ? '<span class="compass-best-badge">추천</span>' : ''}</span>
+            </div>
+            <span class="compass-option-pct">${opt.pct}%</span>
+          </div>
+          <div class="compass-pct-bar-wrap">
+            <div class="compass-pct-bar" style="width:0%" data-pct="${opt.pct}"></div>
+          </div>
+          <div class="compass-option-tags">
+            ${opt.pros.map(p => `<span class="compass-tag pro">✓ ${p}</span>`).join('')}
+            ${opt.cons.map(c => `<span class="compass-tag con">✕ ${c}</span>`).join('')}
+          </div>
+        </div>`;
+    }).join('');
+
+    // 바 애니메이션
+    setTimeout(() => {
+      optionsEl.querySelectorAll('.compass-pct-bar').forEach(bar => {
+        bar.style.width = bar.dataset.pct + '%';
+      });
+    }, 100);
+  }
+
+  // AI 코멘트
+  if (aiEl) aiEl.textContent = _generateCompassAiComment(q, options);
+
+  if (emptyEl)  emptyEl.style.display  = 'none';
+  if (resultEl) resultEl.style.display = '';
+
+  // GA 이벤트
+  if (typeof gtag !== 'undefined') {
+    gtag('event', 'compass_analyze', { event_category: 'engagement', event_label: state.category || 'unknown' });
+  }
+}
+
+function _generateCompassOptions(q) {
+  const mem    = _memLoad();
+  const avgAcc = mem.length
+    ? Math.round(mem.slice(0,5).reduce((s,it) => s + it.accept, 0) / Math.min(5, mem.length))
+    : 65;
+
+  // 질문 키워드 기반 옵션 생성
+  const isInvest   = /투자|자금|vc|돈/.test(q);
+  const isCareer   = /이직|퇴사|취업|커리어|직장/.test(q);
+  const isLove     = /연애|고백|헤어|재회|사랑/.test(q);
+  const isStartup  = /창업|사업|스타트업/.test(q);
+  const isRelation = /관계|친구|가족|사람/.test(q);
+
+  if (isInvest) return [
+    { name: '투자 진행',     pct: Math.min(90, avgAcc + 8),  pros: ['빠른 성장', '네트워크'],    cons: ['지분 희석'] },
+    { name: '자체 성장',     pct: Math.max(40, avgAcc - 5),  pros: ['독립성 유지'],              cons: ['성장 속도'] },
+    { name: 'IP/특허 확보',  pct: Math.min(85, avgAcc + 12), pros: ['장기 자산', '협상력 강화'], cons: ['시간 소요'] },
+  ];
+  if (isCareer) return [
+    { name: '지금 이직',     pct: Math.min(88, avgAcc + 5),  pros: ['새 환경', '연봉 협상'],   cons: ['적응 기간'] },
+    { name: '더 준비 후',    pct: Math.max(45, avgAcc - 8),  pros: ['안정성'],                 cons: ['기회 놓침'] },
+    { name: '현재 성과 집중', pct: Math.min(82, avgAcc + 2),  pros: ['포트폴리오 강화'],        cons: ['시간 소요'] },
+  ];
+  if (isLove) return [
+    { name: '먼저 연락',     pct: Math.min(85, avgAcc + 3),  pros: ['솔직함', '기회 확보'],    cons: ['거절 리스크'] },
+    { name: '더 기다리기',   pct: Math.max(40, avgAcc - 10), pros: ['자연스러움'],             cons: ['타이밍 놓침'] },
+    { name: '간접 접근',     pct: Math.min(80, avgAcc + 1),  pros: ['부담 없음'],              cons: ['느린 진행'] },
+  ];
+  if (isStartup) return [
+    { name: '지금 시작',     pct: Math.min(88, avgAcc + 6),  pros: ['빠른 학습', '선점 효과'], cons: ['리소스 부족'] },
+    { name: '파트너 확보 후', pct: Math.min(82, avgAcc + 2),  pros: ['팀 역량'],               cons: ['시간 소요'] },
+    { name: '소규모 테스트', pct: Math.min(91, avgAcc + 10), pros: ['리스크 최소화', '검증'],  cons: ['규모 한계'] },
+  ];
+
+  // 기본 옵션
+  return [
+    { name: '지금 실행',  pct: Math.min(88, avgAcc + 5),  pros: ['모멘텀 확보', '빠른 피드백'], cons: ['준비 부족 가능'] },
+    { name: '더 준비',    pct: Math.max(42, avgAcc - 8),  pros: ['안정성'],                   cons: ['기회 지연'] },
+    { name: '단계적 접근', pct: Math.min(85, avgAcc + 3),  pros: ['리스크 분산', '유연성'],    cons: ['느린 진행'] },
+  ];
+}
+
+function _generateCompassAiComment(q, options) {
+  const nn      = state.name ? state.name.split(' ')[0] : '너';
+  const mem     = _memLoad();
+  const bestOpt = options.reduce((b, o) => o.pct > b.pct ? o : b, options[0]);
+
+  // 반복 패턴 참조
+  if (mem.length >= 3) {
+    const { patterns } = _detectPatterns(mem);
+    const top = patterns[0];
+    if (top && top.count >= 2) {
+      const label = CATEGORIES[top.key]?.label || top.key;
+      return `현재 ${nn}은 ${label} 관련 고민을 ${top.count}번 반복하고 있어. Signal이 보기엔 지금 가장 필요한 건 완벽한 결정이 아니라, "${bestOpt.name}" 방향으로 작게 시작해보는 거야. 움직이면서 답이 보이기 시작할 거야.`;
+    }
+  }
+
+  return `현재 흐름을 보면 "${bestOpt.name}" 방향이 ${bestOpt.pct}%로 가장 맞아 보여. ${nn}의 과거 패턴과 지금 에너지를 종합하면, 작은 테스트부터 시작하는 게 리스크를 줄이면서도 앞으로 나아갈 수 있는 방법이야.`;
+}
+
+function resetCompass() {
+  const emptyEl  = document.getElementById('compassEmpty');
+  const resultEl = document.getElementById('compassResult');
+  const input    = document.getElementById('compassInput');
+  if (emptyEl)  emptyEl.style.display  = '';
+  if (resultEl) resultEl.style.display = 'none';
+  if (input)    input.value = '';
 }

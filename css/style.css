@@ -2903,8 +2903,280 @@ body {
 }
 .memory-recall-banner strong { color: var(--white); }
 
-/* 탭 버튼 — 메모리 탭 5개 대응 */
+/* 탭 버튼 — 5개 대응 */
+.tab-label { font-size: 10px; }
 @media (max-width: 380px) {
   .tab-label { font-size: 9px; }
   .bottom-nav { gap: 0; }
 }
+
+/* ============================================================
+   SIGNAL JOURNEY
+============================================================ */
+.journey-container {
+  padding: 0 0 calc(var(--tab-h) + 24px);
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+}
+.journey-header {
+  padding: 72px 20px 20px;
+  background: linear-gradient(180deg, rgba(167,139,250,0.07) 0%, transparent 100%);
+}
+.journey-header-top {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+}
+.journey-logo {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 20px; font-weight: 700; color: var(--white); letter-spacing: -0.5px;
+}
+.journey-title-text { color: var(--white); }
+.journey-beta-badge {
+  font-size: 10px; font-weight: 700; letter-spacing: 1px;
+  color: #A78BFA; background: rgba(167,139,250,0.12);
+  border: 1px solid rgba(167,139,250,0.25); border-radius: 4px; padding: 2px 7px;
+}
+.journey-subtitle { font-size: 14px; color: var(--text-dim); line-height: 1.5; }
+
+.journey-empty {
+  text-align: center; padding: 60px 24px;
+}
+.journey-empty-icon { font-size: 52px; margin-bottom: 20px; }
+.journey-empty-title { font-size: 18px; font-weight: 600; color: var(--white); margin-bottom: 10px; }
+.journey-empty-desc { font-size: 14px; color: var(--text-dim); line-height: 1.7; margin-bottom: 28px; }
+
+.journey-content { padding: 0 16px; }
+
+/* 감정 추세 카드 */
+.journey-trend-card {
+  background: var(--navy-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  margin-bottom: 16px;
+}
+.journey-trend-title {
+  font-size: 12px; font-weight: 600; color: var(--text-dim);
+  letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+}
+.journey-trend-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+}
+.journey-trend-item {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.journey-trend-label { font-size: 13px; color: var(--text-dim); }
+.journey-trend-values {
+  display: flex; align-items: center; gap: 6px;
+}
+.journey-trend-old { font-size: 13px; color: var(--text-dim); }
+.journey-trend-arrow { font-size: 12px; }
+.journey-trend-arrow.up   { color: #6EE7D8; }
+.journey-trend-arrow.down { color: #F87171; }
+.journey-trend-arrow.same { color: var(--text-dim); }
+.journey-trend-new { font-size: 16px; font-weight: 700; color: var(--white); }
+
+/* AI 분석 */
+.journey-ai-card {
+  background: linear-gradient(135deg, rgba(167,139,250,0.1) 0%, rgba(167,139,250,0.03) 100%);
+  border: 1px solid rgba(167,139,250,0.2);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  margin-bottom: 20px;
+}
+.journey-ai-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.8px;
+  color: #A78BFA; margin-bottom: 10px; text-transform: uppercase;
+}
+.journey-ai-text {
+  font-size: 14px; color: var(--text); line-height: 1.8;
+}
+
+/* 여정 타임라인 */
+.journey-section { margin-bottom: 24px; }
+.journey-timeline { position: relative; padding-left: 20px; }
+.journey-timeline::before {
+  content: ''; position: absolute; left: 6px; top: 0; bottom: 0;
+  width: 2px;
+  background: linear-gradient(180deg, #A78BFA 0%, rgba(167,139,250,0.1) 100%);
+}
+.journey-month-block { margin-bottom: 20px; position: relative; }
+.journey-month-block::before {
+  content: ''; position: absolute; left: -17px; top: 10px;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #A78BFA; border: 2px solid var(--navy);
+}
+.journey-month-label {
+  font-size: 12px; font-weight: 700; color: #A78BFA;
+  letter-spacing: 0.5px; margin-bottom: 8px;
+}
+.journey-month-card {
+  background: var(--navy-2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 14px 16px;
+}
+.journey-month-events {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;
+}
+.journey-event-tag {
+  font-size: 11px; font-weight: 600;
+  padding: 3px 9px; border-radius: 99px;
+  background: rgba(167,139,250,0.12); color: #A78BFA;
+  border: 1px solid rgba(167,139,250,0.2);
+}
+.journey-month-emotions {
+  display: flex; gap: 14px;
+}
+.journey-month-emotion {
+  font-size: 12px; color: var(--text-dim);
+}
+.journey-month-emotion span { font-weight: 700; color: var(--white); }
+
+/* ============================================================
+   SIGNAL COMPASS
+============================================================ */
+.compass-container {
+  padding: 0 0 calc(var(--tab-h) + 24px);
+  max-width: 480px; margin: 0 auto; min-height: 100vh;
+}
+.compass-header {
+  padding: 72px 20px 20px;
+  background: linear-gradient(180deg, rgba(252,211,77,0.06) 0%, transparent 100%);
+}
+.compass-header-top {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+}
+.compass-logo {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 20px; font-weight: 700; color: var(--white); letter-spacing: -0.5px;
+}
+.compass-title-text { color: var(--white); }
+.compass-beta-badge {
+  font-size: 10px; font-weight: 700; letter-spacing: 1px;
+  color: #FCD34D; background: rgba(252,211,77,0.1);
+  border: 1px solid rgba(252,211,77,0.25); border-radius: 4px; padding: 2px 7px;
+}
+.compass-subtitle { font-size: 14px; color: var(--text-dim); line-height: 1.5; }
+
+/* 빈 상태 */
+.compass-empty { padding: 20px 16px; }
+.compass-empty-icon { font-size: 48px; text-align: center; margin-bottom: 16px; }
+.compass-empty-title {
+  font-size: 18px; font-weight: 600; color: var(--white);
+  text-align: center; margin-bottom: 8px;
+}
+.compass-empty-desc {
+  font-size: 14px; color: var(--text-dim); line-height: 1.7;
+  text-align: center; margin-bottom: 24px;
+}
+.compass-input-wrap { display: flex; flex-direction: column; gap: 12px; }
+.compass-textarea {
+  width: 100%; background: var(--navy-2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 14px 16px;
+  color: var(--text); font-size: 15px; font-family: var(--font);
+  resize: none; line-height: 1.6; outline: none;
+  transition: border-color 0.2s;
+}
+.compass-textarea:focus { border-color: #FCD34D; }
+.compass-analyze-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: #FCD34D; color: #0F172A;
+  border: none; border-radius: var(--radius-sm);
+  padding: 14px 24px; font-size: 15px; font-weight: 700;
+  cursor: pointer; transition: opacity 0.2s;
+}
+.compass-analyze-btn:hover { opacity: 0.85; }
+
+/* 결과 */
+.compass-result { padding: 0 16px; }
+.compass-question-card {
+  background: var(--navy-2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px 18px; margin-bottom: 16px;
+}
+.compass-q-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.8px;
+  color: #FCD34D; margin-bottom: 8px; text-transform: uppercase;
+}
+.compass-q-text {
+  font-size: 15px; color: var(--white); line-height: 1.6; margin-bottom: 12px;
+}
+.compass-reset-btn {
+  font-size: 12px; color: var(--text-dim); background: none;
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 5px 12px; cursor: pointer; transition: color 0.2s;
+}
+.compass-reset-btn:hover { color: var(--white); }
+
+/* 옵션 카드 */
+.compass-options {
+  display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px;
+}
+.compass-option-card {
+  background: var(--navy-2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 18px 20px;
+  transition: border-color 0.2s, transform 0.15s;
+  cursor: pointer;
+}
+.compass-option-card:hover {
+  border-color: rgba(252,211,77,0.3); transform: translateY(-1px);
+}
+.compass-option-card.best { border-color: rgba(252,211,77,0.4); }
+.compass-option-header {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;
+}
+.compass-option-label {
+  display: flex; align-items: center; gap: 8px;
+}
+.compass-option-alpha {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: rgba(252,211,77,0.15); border: 1px solid rgba(252,211,77,0.3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: #FCD34D;
+}
+.compass-option-card.best .compass-option-alpha {
+  background: #FCD34D; color: #0F172A;
+}
+.compass-option-name {
+  font-size: 15px; font-weight: 600; color: var(--white);
+}
+.compass-option-pct {
+  font-size: 22px; font-weight: 700; color: #FCD34D;
+}
+.compass-option-card.best .compass-option-pct { color: #FCD34D; }
+
+.compass-pct-bar-wrap {
+  background: rgba(255,255,255,0.06); border-radius: 99px; height: 4px; margin-bottom: 14px; overflow: hidden;
+}
+.compass-pct-bar {
+  height: 100%; border-radius: 99px; background: #FCD34D;
+  transition: width 0.9s cubic-bezier(0.34,1.56,0.64,1);
+}
+.compass-option-tags {
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+.compass-tag {
+  font-size: 11px; padding: 3px 9px; border-radius: 99px;
+}
+.compass-tag.pro  { background: rgba(110,231,216,0.1); color: var(--mint); border: 1px solid rgba(110,231,216,0.2); }
+.compass-tag.con  { background: rgba(248,113,113,0.1); color: var(--coral); border: 1px solid rgba(248,113,113,0.2); }
+.compass-best-badge {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+  color: #0F172A; background: #FCD34D;
+  border-radius: 4px; padding: 2px 7px; margin-left: 6px;
+}
+
+/* Compass AI 코멘트 */
+.compass-ai-card {
+  background: linear-gradient(135deg, rgba(252,211,77,0.08) 0%, rgba(252,211,77,0.02) 100%);
+  border: 1px solid rgba(252,211,77,0.2);
+  border-radius: var(--radius); padding: 18px 20px;
+  display: flex; gap: 12px; align-items: flex-start; margin-bottom: 20px;
+}
+.compass-ai-icon { font-size: 18px; color: #FCD34D; flex-shrink: 0; margin-top: 2px; }
+.compass-ai-comment { font-size: 14px; color: var(--text); line-height: 1.8; }
+.compass-retry-btn {
+  width: 100%; background: transparent;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 13px; font-size: 14px; color: var(--text-dim);
+  cursor: pointer; transition: all 0.2s; font-family: var(--font);
+}
+.compass-retry-btn:hover { border-color: var(--border-mint); color: var(--white); }

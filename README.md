@@ -202,6 +202,9 @@ risk   범위: 8  ~ 80%
 - [x] Google Analytics 연동 ✅ v1.5.0
 - [x] Supabase 데이터 저장 ✅ v1.5.0
 - [x] Signal Memory — 인생 기억 엔진 ✅ v1.6.0
+- [x] Signal Journey — 변화 여정 타임라인 ✅ v2.0.0
+- [x] Signal Compass — 선택지 방향 분석 ✅ v2.0.0
+- [x] 탭 구조 재편 (Home/Chat/Memory/Journey/Compass) ✅ v2.0.0
 - [ ] Signal Memory — 서버 동기화 (현재 로컬스토리지)
 - [ ] 영어 버전 글로벌 확장
 - [ ] 주간 패턴 리포트
@@ -226,6 +229,22 @@ Signal은 다음 용도의 사용을 엄격히 금지합니다:
 ---
 
 ## 📋 파일 수정 이력
+
+### v2.0.0 — Signal Life OS (Journey + Compass + 탭 재구성)
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| `index.html` | 하단 탭 5개 재구성 (Home/Chat/Memory/Journey/Compass), `screen-journey`, `screen-compass` 화면 추가 |
+| `css/style.css` | Journey (보라 테마), Compass (골드 테마) 전체 스타일 추가 |
+| `js/app.js` | `renderJourneyScreen()`, `renderCompassScreen()`, `runCompass()`, `_generateCompassOptions()`, `_generateCompassAiComment()` 추가. switchTab/showScreen Journey·Compass 연동 |
+
+**탭 구조 변경**
+```
+v1.x: 홈 / 기록 / 메모리 / 대화
+v2.0: 홈 / 채팅 / 메모리 / 여정 / 나침반
+```
+
+---
 
 ### v1.6.0 — Signal Memory (인생 기억 엔진)
 

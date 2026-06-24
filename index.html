@@ -527,9 +527,10 @@
 
   <!-- ==================== BOTTOM TAB BAR ==================== -->
   <nav class="bottom-nav" id="bottomNav">
+    <!-- Home -->
     <button class="tab-btn active" id="tab-home" onclick="switchTab('home')">
       <span class="tab-icon">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
           <polyline points="9,22 9,12 15,12 15,22"/>
         </svg>
@@ -537,32 +538,44 @@
       <span class="tab-label">홈</span>
     </button>
 
-    <button class="tab-btn" id="tab-history" onclick="switchTab('history')">
+    <!-- Chat -->
+    <button class="tab-btn" id="tab-chat" onclick="switchTab('chat')">
       <span class="tab-icon">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/>
-          <polyline points="12,6 12,12 16,14"/>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
         </svg>
       </span>
-      <span class="tab-label">기록</span>
+      <span class="tab-label">채팅</span>
     </button>
 
+    <!-- Memory -->
     <button class="tab-btn" id="tab-memory" onclick="switchTab('memory')">
       <span class="tab-icon">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/><circle cx="18" cy="6" r="3" fill="currentColor" opacity="0.6"/>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
         </svg>
       </span>
       <span class="tab-label">메모리</span>
     </button>
 
-    <button class="tab-btn" id="tab-chat" onclick="switchTab('chat')">
+    <!-- Journey -->
+    <button class="tab-btn" id="tab-journey" onclick="switchTab('journey')">
       <span class="tab-icon">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/>
         </svg>
       </span>
-      <span class="tab-label">대화</span>
+      <span class="tab-label">여정</span>
+    </button>
+
+    <!-- Compass -->
+    <button class="tab-btn" id="tab-compass" onclick="switchTab('compass')">
+      <span class="tab-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><polygon points="16.24,7.76 14.12,14.12 7.76,16.24 9.88,9.88"/>
+        </svg>
+      </span>
+      <span class="tab-label">나침반</span>
     </button>
   </nav>
 
@@ -672,6 +685,127 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22,2 15,22 11,13 2,9"/></svg>
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- ==================== SCREEN: JOURNEY ==================== -->
+  <div class="screen" id="screen-journey">
+    <div class="journey-container">
+
+      <div class="journey-header">
+        <div class="journey-header-top">
+          <div class="journey-logo">
+            <span class="logo-dot"></span>
+            <span class="journey-title-text">Signal Journey</span>
+          </div>
+          <span class="journey-beta-badge">BETA</span>
+        </div>
+        <p class="journey-subtitle" id="journeySubtitle">너의 변화 흐름을 함께 읽고 있어.</p>
+      </div>
+
+      <!-- 빈 상태 -->
+      <div class="journey-empty" id="journeyEmpty">
+        <div class="journey-empty-icon">🗺️</div>
+        <p class="journey-empty-title">아직 여정이 없어</p>
+        <p class="journey-empty-desc">고민을 2번 이상 분석하면<br>Signal이 너의 변화 여정을 그려줘.</p>
+        <button class="memory-start-btn" onclick="switchTab('home')">첫 고민 분석하기</button>
+      </div>
+
+      <!-- 여정 콘텐츠 -->
+      <div class="journey-content" id="journeyContent" style="display:none;">
+
+        <!-- 감정 추세 카드 -->
+        <div class="journey-trend-card" id="journeyTrendCard">
+          <div class="journey-trend-title">감정 추세</div>
+          <div class="journey-trend-grid" id="journeyTrendGrid">
+            <!-- JS 렌더 -->
+          </div>
+        </div>
+
+        <!-- AI 분석 -->
+        <div class="journey-ai-card" id="journeyAiCard">
+          <div class="journey-ai-label">✦ AI 분석</div>
+          <p class="journey-ai-text" id="journeyAiText"></p>
+        </div>
+
+        <!-- 월별 타임라인 -->
+        <section class="journey-section">
+          <h3 class="memory-section-title">
+            <span class="memory-section-icon">📅</span>
+            변화 타임라인
+          </h3>
+          <div class="journey-timeline" id="journeyTimeline">
+            <!-- JS 렌더 -->
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SCREEN: COMPASS ==================== -->
+  <div class="screen" id="screen-compass">
+    <div class="compass-container">
+
+      <div class="compass-header">
+        <div class="compass-header-top">
+          <div class="compass-logo">
+            <span class="logo-dot"></span>
+            <span class="compass-title-text">Signal Compass</span>
+          </div>
+          <span class="compass-beta-badge">BETA</span>
+        </div>
+        <p class="compass-subtitle">현재 고민을 기반으로 방향을 제안해줄게.</p>
+      </div>
+
+      <!-- 고민 입력 없을 때 -->
+      <div class="compass-empty" id="compassEmpty">
+        <div class="compass-empty-icon">🧭</div>
+        <p class="compass-empty-title">지금 어떤 선택 앞에 있어?</p>
+        <p class="compass-empty-desc">고민을 입력하면 Signal이<br>가능한 방향 3가지를 함께 분석해줄게.</p>
+
+        <div class="compass-input-wrap">
+          <textarea
+            id="compassInput"
+            class="compass-textarea"
+            placeholder="예) 투자를 받을까, 아니면 스스로 버틸까?"
+            maxlength="200"
+            rows="3"
+          ></textarea>
+          <button class="compass-analyze-btn" onclick="runCompass()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="16.24,7.76 14.12,14.12 7.76,16.24 9.88,9.88"/></svg>
+            방향 분석하기
+          </button>
+        </div>
+      </div>
+
+      <!-- 분석 결과 -->
+      <div class="compass-result" id="compassResult" style="display:none;">
+
+        <!-- 현재 고민 -->
+        <div class="compass-question-card" id="compassQuestionCard">
+          <div class="compass-q-label">현재 고민</div>
+          <p class="compass-q-text" id="compassQuestionText"></p>
+          <button class="compass-reset-btn" onclick="resetCompass()">다른 고민 보기</button>
+        </div>
+
+        <!-- 선택지 카드들 -->
+        <div class="compass-options" id="compassOptions">
+          <!-- JS 렌더 -->
+        </div>
+
+        <!-- AI 코멘트 -->
+        <div class="compass-ai-card" id="compassAiCard">
+          <div class="compass-ai-icon">✦</div>
+          <p class="compass-ai-comment" id="compassAiComment"></p>
+        </div>
+
+        <!-- 다시 분석 -->
+        <button class="compass-retry-btn" onclick="resetCompass()">
+          다른 고민 분석하기
+        </button>
+      </div>
+
     </div>
   </div>
 
