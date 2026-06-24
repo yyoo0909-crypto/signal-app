@@ -2113,3 +2113,465 @@ body {
 .oracle-card:nth-child(1) { animation-delay: 0.05s !important; }
 .oracle-card:nth-child(2) { animation-delay: 0.18s !important; }
 .oracle-card:nth-child(3) { animation-delay: 0.31s !important; }
+
+
+/* ==================================================================================
+   황금 타로 공유 카드 (Signal Gold Share Card)
+   THE FOOL 금박 타로 스타일 — 방사형 패턴 + 금박 Gradient + 아치 프레임 + 3D Tilt
+   ================================================================================== */
+
+/* ── 공유 카드 버튼 (결과 화면 action row) ── */
+.share-card-btn {
+  flex: 1;
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  background: linear-gradient(135deg,
+    rgba(212,175,55,0.15) 0%,
+    rgba(255,215,0,0.08) 50%,
+    rgba(184,142,40,0.15) 100%);
+  color: #D4AF37;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: var(--font);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.25s;
+  letter-spacing: 0.3px;
+}
+.share-card-btn:hover {
+  background: linear-gradient(135deg,
+    rgba(212,175,55,0.28) 0%,
+    rgba(255,215,0,0.15) 50%,
+    rgba(184,142,40,0.28) 100%);
+  border-color: rgba(212, 175, 55, 0.75);
+  box-shadow: 0 0 16px rgba(212,175,55,0.25);
+  transform: translateY(-1px);
+}
+.share-card-btn:active { transform: translateY(0) scale(0.97); }
+
+/* ── 공유 카드 모달 오버레이 ── */
+.gold-card-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.88);
+  z-index: 3000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  overflow-y: auto;
+}
+.gold-card-overlay.open {
+  display: flex;
+  animation: gcOverlayIn 0.3s ease;
+}
+@keyframes gcOverlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── 모달 내부 래퍼 ── */
+.gold-card-modal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  width: 100%;
+  max-width: 420px;
+  animation: gcModalIn 0.4s cubic-bezier(0.22,0.61,0.36,1);
+}
+@keyframes gcModalIn {
+  from { transform: translateY(40px) scale(0.94); opacity: 0; }
+  to   { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* ── 황금 카드 본체 (검정+금 라인아트 SVG) ── */
+.gold-signal-card {
+  position: relative;
+  width: 100%;
+  max-width: 340px;
+  aspect-ratio: 5 / 8;           /* 세로형 타로 비율 */
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  background: #1a1812;            /* SVG 배경 색과 동일 */
+  transform-style: preserve-3d;
+  transition: transform 0.1s ease;
+  box-shadow:
+    0 0 0 1px rgba(212,175,55,0.55),
+    0 0 50px rgba(212,175,55,0.28),
+    0 20px 60px rgba(0,0,0,0.85);
+  will-change: transform;
+}
+
+/* SVG 카드가 컨테이너 전체를 채우도록 */
+#goldCardSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ── SVG 카드 본체: 검정+금 라인아트 시스템 ── */
+/* gc-bg, gc-sunburst, gc-frame 등 구CSS는 SVG로 대체됨 */
+}
+.gc-diamonds {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 4px;
+}
+.gc-diamond {
+  width: 7px; height: 7px;
+  background: rgba(212,175,55,0.7);
+  transform: rotate(45deg);
+  box-shadow: 0 0 4px rgba(212,175,55,0.5);
+}
+.gc-diamond.center {
+  width: 9px; height: 9px;
+  background: linear-gradient(135deg, #FFD700, #D4AF37, #B8860B);
+  box-shadow: 0 0 8px rgba(212,175,55,0.8);
+}
+
+/* ── 하단 장식선 ── */
+.gc-bottom-deco {
+  position: absolute;
+  bottom: 66px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  pointer-events: none;
+  z-index: 2;
+}
+.gc-line {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(212,175,55,0.7) 20%,
+    rgba(255,215,0,0.9) 50%,
+    rgba(212,175,55,0.7) 80%,
+    transparent);
+}
+.gc-line.thin { opacity: 0.4; }
+
+/* ── SVG 카드 내 Cinzel 폰트 (구 DOM 요소 클래스 제거됨) ── */
+
+/* ── Shine 반사 효과 레이어 ── */
+.gc-shine {
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  background: radial-gradient(
+    circle at var(--shine-x, 50%) var(--shine-y, 30%),
+    rgba(255,255,255,0.12) 0%,
+    rgba(255,215,0,0.06) 30%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 8;
+  transition: background 0.05s;
+  mix-blend-mode: screen;
+}
+
+/* ── 3D Tilt 호버 효과 ── */
+.gold-signal-card:hover {
+  box-shadow:
+    0 0 0 1px rgba(212,175,55,0.9),
+    0 0 60px rgba(212,175,55,0.5),
+    0 30px 80px rgba(0,0,0,0.8);
+}
+
+/* ── 모달 하단 액션 버튼 영역 ── */
+.gold-card-actions {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  max-width: 360px;
+}
+
+.gc-action-btn {
+  flex: 1;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(212,175,55,0.4);
+  background: rgba(212,175,55,0.1);
+  color: #D4AF37;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: var(--font);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  transition: all 0.22s;
+  letter-spacing: 0.3px;
+}
+.gc-action-btn:hover {
+  background: rgba(212,175,55,0.22);
+  border-color: rgba(212,175,55,0.7);
+  box-shadow: 0 0 14px rgba(212,175,55,0.2);
+  transform: translateY(-1px);
+}
+.gc-action-btn.primary {
+  background: linear-gradient(135deg, #D4AF37 0%, #B8860B 100%);
+  color: #1a1200;
+  border-color: transparent;
+  box-shadow: 0 4px 16px rgba(212,175,55,0.3);
+}
+.gc-action-btn.primary:hover {
+  box-shadow: 0 6px 24px rgba(212,175,55,0.5);
+  transform: translateY(-2px);
+}
+.gc-action-btn:active { transform: translateY(0) scale(0.97); }
+
+/* ── 닫기 버튼 ── */
+.gc-close-btn {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(212,175,55,0.35);
+  background: rgba(20,15,0,0.85);
+  color: rgba(212,175,55,0.8);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  transition: all 0.2s;
+  z-index: 3010;
+}
+.gc-close-btn:hover {
+  background: rgba(212,175,55,0.15);
+  color: #D4AF37;
+  border-color: rgba(212,175,55,0.7);
+}
+
+/* ── 저장 중 로딩 인디케이터 ── */
+.gc-saving {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: rgba(212,175,55,0.7);
+  letter-spacing: 1px;
+}
+.gc-saving.show { display: flex; }
+.gc-saving-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #D4AF37;
+  animation: gcSavingPulse 1s ease-in-out infinite;
+}
+.gc-saving-dot:nth-child(2) { animation-delay: 0.2s; }
+.gc-saving-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes gcSavingPulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50%       { opacity: 1;   transform: scale(1.2); }
+}
+
+/* ── 반응형: 작은 화면 ── */
+@media (max-width: 400px) {
+  .gold-signal-card { max-width: 300px; }
+  .gc-accept-num { font-size: 42px; }
+  .gc-summary { font-size: 12px; }
+  .gold-card-actions { flex-direction: column; }
+}
+
+/* ── 결과 화면 action row: 3개 버튼 레이아웃 ── */
+.result-actions.has-share {
+  flex-wrap: wrap;
+}
+.result-actions.has-share .share-card-btn {
+  flex: 1 1 100%;
+  order: -1;
+}
+@media (min-width: 360px) {
+  .result-actions.has-share .share-card-btn {
+    flex: 1 1 auto;
+    order: 0;
+  }
+}
+
+/* ============================================================
+   FEEDBACK BLOCK
+============================================================ */
+.feedback-block {
+  background: var(--navy-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.feedback-question {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 14px;
+  letter-spacing: 0.2px;
+}
+
+.feedback-btns {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.feedback-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 24px;
+  border-radius: 50px;
+  border: 1px solid var(--border);
+  background: var(--white-10);
+  color: var(--text-dim);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 120px;
+  justify-content: center;
+}
+
+.feedback-btn .fb-emoji {
+  font-size: 18px;
+  line-height: 1;
+  transition: transform 0.2s;
+}
+
+.feedback-btn .fb-label {
+  font-size: 13px;
+}
+
+.feedback-btn.helpful:hover,
+.feedback-btn.helpful.selected {
+  border-color: var(--border-mint);
+  background: var(--mint-dim);
+  color: var(--mint);
+}
+.feedback-btn.helpful:hover .fb-emoji,
+.feedback-btn.helpful.selected .fb-emoji { transform: scale(1.25) rotate(-8deg); }
+
+.feedback-btn.not-helpful:hover,
+.feedback-btn.not-helpful.selected {
+  border-color: rgba(255, 107, 107, 0.4);
+  background: rgba(255, 107, 107, 0.08);
+  color: #ff6b6b;
+}
+.feedback-btn.not-helpful:hover .fb-emoji,
+.feedback-btn.not-helpful.selected .fb-emoji { transform: scale(1.25) rotate(8deg); }
+
+.feedback-btn:active { transform: scale(0.95); }
+
+.feedback-done {
+  font-size: 14px;
+  color: var(--mint);
+  font-weight: 600;
+  margin-top: 4px;
+  animation: fbDoneIn 0.4s ease;
+}
+
+@keyframes fbDoneIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================================
+   MOBILE IMPROVEMENTS
+============================================================ */
+
+/* 상단 네비 고정 — safe-area 대응 */
+.nav {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* 결과 카드 모바일 패딩 최적화 */
+@media (max-width: 480px) {
+  .result-card { padding: 16px; }
+  .result-container { padding: 66px 14px calc(var(--tab-h) + 18px); }
+  .home-container   { padding: 66px 14px calc(var(--tab-h) + 18px); }
+
+  /* 버튼 터치 타겟 최소 44px */
+  .action-btn    { min-height: 48px; font-size: 13px; padding: 12px 10px; }
+  .share-card-btn { min-height: 52px; font-size: 14px; }
+  .feedback-btn  { min-height: 48px; }
+
+  /* result-actions 모바일: 공유 풀폭, 나머지 나란히 */
+  .result-actions.has-share {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .result-actions.has-share .share-card-btn {
+    flex: 1 1 100%;
+    order: -1;
+  }
+  .result-actions.has-share .save-btn,
+  .result-actions.has-share .new-btn {
+    flex: 1;
+  }
+
+  /* 골드카드 모달 버튼 3개 — 균등 */
+  .gold-card-actions {
+    max-width: 100%;
+    gap: 8px;
+  }
+  .gc-action-btn {
+    font-size: 12px;
+    padding: 12px 8px;
+  }
+
+  /* 채팅 입력 */
+  .chat-input { font-size: 15px; }   /* iOS 자동줌 방지 */
+
+  /* 퀵 칩 스크롤 */
+  .quick-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+  .quick-chips::-webkit-scrollbar { display: none; }
+  .quick-chip { white-space: nowrap; }
+
+  /* 시그널 바 폰트 */
+  .signal-value { font-size: 16px; }
+  .signal-label { font-size: 13px; }
+
+  /* 요약 텍스트 */
+  .summary-text { font-size: 20px; line-height: 1.45; }
+
+  /* 피드백 버튼 */
+  .feedback-btns { gap: 10px; }
+  .feedback-btn  { min-width: 100px; padding: 11px 16px; }
+}
+
+/* 아이폰 노치/다이나믹아일랜드 대응 */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .nav { padding-top: env(safe-area-inset-top); }
+  .bottom-nav { padding-bottom: env(safe-area-inset-bottom); }
+}
+
+/* ── 골드카드 링크 복사 버튼 복사완료 상태 ── */
+.gc-action-btn.copied {
+  border-color: var(--border-mint);
+  background: var(--mint-dim);
+  color: var(--mint);
+}

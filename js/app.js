@@ -4,6 +4,28 @@
 
 'use strict';
 
+// ==================== SUPABASE CONFIG ====================
+const _SB_URL  = 'https://itkddukjjinllloejndd.supabase.co';
+const _SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0a2RkdWtqamlubGxsb2VqbmRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxMDM0NTgsImV4cCI6MjA5NzY3OTQ1OH0.hS1g51obEBx_kdqhAUbSY6Q5lKwVC4gMJ_Empl5XbLY';
+const _SB_HDR  = { 'Content-Type': 'application/json', 'apikey': _SB_KEY, 'Authorization': `Bearer ${_SB_KEY}` };
+
+// Supabase REST API 헬퍼
+async function _sbInsert(table, row) {
+  try {
+    const res = await fetch(`${_SB_URL}/rest/v1/${table}`, {
+      method:  'POST',
+      headers: { ..._SB_HDR, 'Prefer': 'return=minimal' },
+      body:    JSON.stringify(row),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      console.warn('[Signal Supabase] 저장 실패:', res.status, errText);
+    }
+  } catch (e) {
+    console.warn('[Signal Supabase] 저장 실패 (무시됨):', e.message);
+  }
+}
+
 // ==================== STATE ====================
 const state = {
   name: '',
@@ -663,6 +685,14 @@ function startAnalysis() {
   const loadText = name ? `${name}의 흐름을 읽는 중이야...` : '흐름을 읽는 중이야...';
   document.getElementById('loadingName').textContent = loadText;
 
+  // GA 이벤트: 분석 시작
+  if (typeof gtag !== 'undefined') {
+    gtag('event', 'analysis_start', {
+      event_category: 'engagement',
+      event_label: state.category || 'unknown',
+    });
+  }
+
   const delay = 1800 + Math.random() * 800;
   setTimeout(() => {
     const result = calculateSignal();
@@ -670,6 +700,16 @@ function startAnalysis() {
     showScreen('result');           // 화면 먼저 전환
     requestAnimationFrame(() => {   // DOM 표시 후 렌더링
       renderResult(result);
+    });
+
+    // Supabase: 분석 결과 저장 (비동기, 실패해도 앱 동작 무관)
+    _sbInsert('signal_results', {
+      category:    result.cat      || 'unknown',
+      accept:      parseInt(result.accept)   || 0,
+      risk:        parseInt(result.risk)     || 0,
+      summary:     result.summaryText || '',
+      user_age:    state.birthYear ? String(new Date().getFullYear() - parseInt(state.birthYear)) : null,
+      user_gender: state.gender   || null,
     });
   }, delay);
 }
@@ -800,6 +840,18 @@ function renderResult(r) {
 
   // Chat reset
   resetChat(r);
+
+  // 피드백 블록 초기화 (새 결과 표시마다 리셋)
+  _resetFeedbackBlock();
+
+  // GA 이벤트: 결과 표시
+  if (typeof gtag !== 'undefined') {
+    gtag('event', 'result_view', {
+      event_category: 'engagement',
+      event_label: r.cat || 'unknown',
+      value: r.accept ?? 0,
+    });
+  }
 }
 
 function animateValue(elId, from, to, duration) {
@@ -4157,7 +4209,23 @@ function _freeformReply(cat, q, rawText, accept, risk, nn, np, r, topics, turnCo
     if (deepTopics[cat]) return deepTopics[cat];
   }
 
-  // 첫 번째 ~ 두 번째 대화 (오프너)
+  // 첫 번째 ~ 두 번째 대화 (오프너) — 이미 대화가 진행 중이면 사용 안 함
+  if (turnCount >= 1) {
+    // 대화가 이미 진행 중 → 맥락 기반 응답
+    const followUps = {
+      startup:    `${nn}, 조금 더 구체적으로 얘기해봐요. 지금 제일 막히는 게 뭐예요?`,
+      invest:     `${nn}, 어떤 방향으로 생각하고 있어요? 좀 더 얘기해줘요.`,
+      love:       `${nn}, 그 상황에서 ${np}마음은 어때요? 좀 더 얘기해봐요.`,
+      career:     `${nn}, 지금 상황이 어떻게 돼요? 좀 더 구체적으로 말해봐요.`,
+      money:      `${nn}, 지금 제일 급한 부분이 뭐예요?`,
+      success:    `${nn}, 그래서 지금 제일 먼저 해야 할 것 같은 게 뭔지 느껴져요?`,
+      future:     `${nn}, 지금 어느 방향이 마음에 걸려요?`,
+      health:     `${nn}, 지금 몸 상태가 어때요? 좀 더 얘기해봐요.`,
+      mind:       `${nn}, 그 감정이 어떻게 느껴져요? 좀 더 말해봐요.`,
+    };
+    return followUps[cat] || `${nn}, 좀 더 구체적으로 말해줘요. 어떤 부분이 제일 걸려요?`;
+  }
+
   const starters = {
     startup: `${nn}, 사업 기운 읽어봤어요. 지금 어느 단계예요? 아이디어만 있는 단계예요, 이미 시작했어요?`,
     invest: `${nn}, 재물 기운 읽어봤어요. 지금 어떤 자산 생각하고 있어요?`,
@@ -4583,4 +4651,995 @@ function initParticles() {
   }
 
   draw();
+}
+
+// ======================================================================================
+// ✦ 황금 타로 공유 카드 — SVG 시스템 v3 (퀄리티 재구성)
+//   GOLD=#D4A94A, BG=#0d0c08
+//   Triple Moon Sun: 9레이어 심볼, 이중 그라데이션, 궤도 달 위상
+// ======================================================================================
+
+/* ── 색상 상수 ── */
+const GC_G   = '#D4A94A';   // 핵심 골드
+const GC_GL  = '#EDD17E';   // 밝은 하이라이트
+const GC_G2  = '#9A7028';   // 어두운 골드 (섀도우)
+const GC_G3  = '#F5E4A0';   // 최밝은 포인트
+const GC_BG  = '#0d0c08';   // 딥 배경
+const GC_BGD = '#181510';   // 카드 배경 미들
+
+/* 이전 호환 별칭 */
+const GC_GOLD  = GC_G;
+const GC_GOLDL = GC_GL;
+
+/**
+ * 카테고리 → 영문 레이블 + 리본 이름 + 심볼 키
+ */
+function _gcCatMeta(cat) {
+  const map = {
+    love:       { label: 'LOVE',        ribbon: 'THE LOVE',      symbol: 'triple_moon_sun' },
+    marriage:   { label: 'MARRIAGE',    ribbon: 'THE VOWS',      symbol: 'moon_face'       },
+    divorce:    { label: 'RELEASE',     ribbon: 'THE RELEASE',   symbol: 'moon_phases'     },
+    family:     { label: 'FAMILY',      ribbon: 'THE ROOT',      symbol: 'triple_moon_sun' },
+    friend:     { label: 'FRIEND',      ribbon: 'THE BOND',      symbol: 'moon_face'       },
+    relation:   { label: 'RELATION',    ribbon: 'THE BRIDGE',    symbol: 'arch_eye'        },
+    money:      { label: 'WEALTH',      ribbon: 'THE COIN',      symbol: 'sun_rays'        },
+    invest:     { label: 'INVEST',      ribbon: 'THE FLOW',      symbol: 'eye_rays'        },
+    realestate: { label: 'PROPERTY',    ribbon: 'THE GROUND',    symbol: 'arch_eye'        },
+    debt:       { label: 'DEBT',        ribbon: 'THE SCALE',     symbol: 'moon_phases'     },
+    startup:    { label: 'STARTUP',     ribbon: 'THE SPARK',     symbol: 'sun_rays'        },
+    legal:      { label: 'LEGAL',       ribbon: 'THE TRUTH',     symbol: 'eye_rays'        },
+    career:     { label: 'CAREER',      ribbon: 'THE PATH',      symbol: 'arch_eye'        },
+    study:      { label: 'STUDY',       ribbon: 'THE WISDOM',    symbol: 'sun_eye'         },
+    success:    { label: 'SUCCESS',     ribbon: 'THE CROWN',     symbol: 'sun_rays'        },
+    future:     { label: 'DESTINY',     ribbon: 'THE SIGNAL',    symbol: 'triple_moon_sun' },
+    health:     { label: 'HEALTH',      ribbon: 'THE VITALITY',  symbol: 'triple_moon_sun' },
+    mind:       { label: 'MIND',        ribbon: 'THE MIRROR',    symbol: 'moon_phases'     },
+    trauma:     { label: 'HEALING',     ribbon: 'THE TIDE',      symbol: 'moon_face'       },
+  };
+  return map[cat] || { label: 'GENERAL', ribbon: 'THE SIGNAL', symbol: 'triple_moon_sun' };
+}
+
+/* ══════════════════════════════════════════════
+   SVG 헬퍼 유틸 (v4 — 참조이미지 4종 심볼)
+══════════════════════════════════════════════ */
+
+function _gcRad(deg) { return deg * Math.PI / 180; }
+function _gcF2(v) { return Math.round(v * 100) / 100; }
+
+/* 극좌표 → 직교 (위=0°) */
+function _gcPolar(cx, cy, r, deg) {
+  const a = _gcRad(deg - 90);
+  return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+}
+
+/* 균일 광선 (thick = 선 굵기 고정, offset = 시작 각도 오프셋) */
+function _gcRays(cx, cy, r1, r2, n, op, thick, offset) {
+  let s = '';
+  const off = offset || 0;
+  for (let i = 0; i < n; i++) {
+    const a = _gcRad(i * (360 / n) - 90 + off);
+    s += `<line x1="${_gcF2(cx+Math.cos(a)*r1)}" y1="${_gcF2(cy+Math.sin(a)*r1)}" x2="${_gcF2(cx+Math.cos(a)*r2)}" y2="${_gcF2(cy+Math.sin(a)*r2)}" stroke="${GC_G}" stroke-width="${thick||.9}" stroke-linecap="round" opacity="${op}"/>`;
+  }
+  return `<g>${s}</g>`;
+}
+
+function _gcDotCircle(cx, cy, r, dash, op, sw) {
+  dash = dash || '2 3'; op = op || 0.35; sw = sw || 0.6;
+  return `<circle cx="${_gcF2(cx)}" cy="${_gcF2(cy)}" r="${_gcF2(r)}" fill="none" stroke="${GC_G}" stroke-width="${sw}" stroke-dasharray="${dash}" opacity="${op}"/>`;
+}
+
+function _gcCircle(cx, cy, r, op, sw) {
+  return `<circle cx="${_gcF2(cx)}" cy="${_gcF2(cy)}" r="${_gcF2(r)}" fill="none" stroke="${GC_G}" stroke-width="${sw||1}" opacity="${op||.7}"/>`;
+}
+
+function _gcStar4(x, y, r, op) {
+  return `<path d="M${_gcF2(x)},${_gcF2(y-r*2)} L${_gcF2(x+r*.45)},${_gcF2(y-r*.45)} L${_gcF2(x+r*2)},${_gcF2(y)} L${_gcF2(x+r*.45)},${_gcF2(y+r*.45)} L${_gcF2(x)},${_gcF2(y+r*2)} L${_gcF2(x-r*.45)},${_gcF2(y+r*.45)} L${_gcF2(x-r*2)},${_gcF2(y)} L${_gcF2(x-r*.45)},${_gcF2(y-r*.45)} Z" fill="${GC_G}" opacity="${op||.6}"/>`;
+}
+
+function _gcStarBg(W, H, count) {
+  let s = '';
+  const seed = W * H;
+  for (let i = 0; i < count; i++) {
+    const rx  = (Math.sin(seed * (i+1) * 0.31) * 0.5 + 0.5) * W;
+    const ry  = (Math.sin(seed * (i+1) * 0.17 + 2.4) * 0.5 + 0.5) * H;
+    const rr  = 0.3 + (Math.sin(seed * (i+1) * 0.53) * 0.5 + 0.5) * 0.9;
+    const rop = 0.08 + (Math.sin(seed * (i+1) * 0.77) * 0.5 + 0.5) * 0.22;
+    s += `<circle cx="${_gcF2(rx)}" cy="${_gcF2(ry)}" r="${_gcF2(rr)}" fill="${GC_GL}" opacity="${_gcF2(rop)}"/>`;
+  }
+  return `<g>${s}</g>`;
+}
+
+/* 광선 사이 페탈 곡선 */
+function _gcFlamePetals(cx, cy, r1, r2, n) {
+  let s = '';
+  for (let i = 0; i < n; i++) {
+    const a0 = _gcRad(i * (360 / n) - 90);
+    const a1 = _gcRad((i + .5) * (360 / n) - 90);
+    const a2 = _gcRad((i + 1) * (360 / n) - 90);
+    const px = (a, r) => _gcF2(cx + Math.cos(a) * r);
+    const py = (a, r) => _gcF2(cy + Math.sin(a) * r);
+    s += `<path d="M${px(a0,r1)},${py(a0,r1)} Q${px(a1,r2*0.72)},${py(a1,r2*0.72)} ${px(a2,r1)},${py(a2,r1)}" fill="none" stroke="${GC_GL}" stroke-width=".7" opacity=".42"/>`;
+  }
+  return `<g>${s}</g>`;
+}
+
+/* 궤도 달 위상 8개 */
+function _gcOrbitMoons(cx, cy, orbR, moonR) {
+  const n = 8;
+  const phases = [0, 1, 2, 3, 4, 3, 2, 1];
+  let s = '';
+  for (let i = 0; i < n; i++) {
+    const [mx, my] = _gcPolar(cx, cy, orbR, (360/n)*i);
+    const ph = phases[i];
+    const mr = moonR;
+    if (ph === 0) {
+      // 보름달
+      s += `<circle cx="${_gcF2(mx)}" cy="${_gcF2(my)}" r="${_gcF2(mr)}" fill="${GC_G}" opacity=".82"/>`;
+    } else if (ph === 4) {
+      // 신월
+      s += `<circle cx="${_gcF2(mx)}" cy="${_gcF2(my)}" r="${_gcF2(mr)}" fill="none" stroke="${GC_G}" stroke-width=".7" opacity=".45"/>`;
+    } else if (ph === 1 || ph === 3) {
+      // 반달
+      const ox = ph === 1 ? mr * 0.55 : -mr * 0.55;
+      s += `<circle cx="${_gcF2(mx)}" cy="${_gcF2(my)}" r="${_gcF2(mr)}" fill="${GC_G}" opacity=".65"/>`;
+      s += `<circle cx="${_gcF2(mx+ox)}" cy="${_gcF2(my)}" r="${_gcF2(mr*.9)}" fill="${GC_BG}" opacity="1"/>`;
+      s += `<circle cx="${_gcF2(mx)}" cy="${_gcF2(my)}" r="${_gcF2(mr)}" fill="none" stroke="${GC_G}" stroke-width=".5" opacity=".45"/>`;
+    } else {
+      // 초승달
+      const ox2 = ph === 2 ? mr * 0.65 : -mr * 0.65;
+      s += `<circle cx="${_gcF2(mx)}" cy="${_gcF2(my)}" r="${_gcF2(mr)}" fill="${GC_G}" opacity=".75"/>`;
+      s += `<circle cx="${_gcF2(mx+ox2)}" cy="${_gcF2(my)}" r="${_gcF2(mr)}" fill="${GC_BG}" opacity="1"/>`;
+      s += `<circle cx="${_gcF2(mx)}" cy="${_gcF2(my)}" r="${_gcF2(mr)}" fill="none" stroke="${GC_G}" stroke-width=".5" opacity=".4"/>`;
+    }
+  }
+  return `<g>${s}</g>`;
+}
+
+/* ══════════════════════════════════════════════
+   4종 심볼 헬퍼 (v4 참조이미지 기반)
+══════════════════════════════════════════════ */
+
+/* 4점 별 (날카로운 다이아 형태) */
+function _gcStar4pt(cx, cy, r1, r2, op) {
+  const pts = [];
+  for (let i = 0; i < 4; i++) {
+    const [ox, oy] = _gcPolar(cx, cy, r1, i * 90);
+    const [ix, iy] = _gcPolar(cx, cy, r2, i * 90 + 45);
+    pts.push(`${_gcF2(ox)},${_gcF2(oy)}`);
+    pts.push(`${_gcF2(ix)},${_gcF2(iy)}`);
+  }
+  return `<polygon points="${pts.join(' ')}" fill="${GC_G}" opacity="${op}"/>`;
+}
+
+/* 8점 별 (코너 장식용) */
+function _gcStar8pt(cx, cy, r1, r2, op) {
+  const pts = [];
+  for (let i = 0; i < 8; i++) {
+    const [ox, oy] = _gcPolar(cx, cy, r1, i * 45);
+    const [ix, iy] = _gcPolar(cx, cy, r2, i * 45 + 22.5);
+    pts.push(`${_gcF2(ox)},${_gcF2(oy)}`);
+    pts.push(`${_gcF2(ix)},${_gcF2(iy)}`);
+  }
+  return `<polygon points="${pts.join(' ')}" fill="${GC_G}" opacity="${op}"/>`;
+}
+
+/* 초승달 path (원 오버랩 방식, dir: 'up'|'down'|'left'|'right') */
+function _gcCrescent(cx, cy, r, dir) {
+  const f2 = _gcF2;
+  if (dir === 'up') {
+    return `<path d="M${f2(cx-r)},${f2(cy)} A${f2(r)},${f2(r)} 0 1,0 ${f2(cx+r)},${f2(cy)} A${f2(r*.72)},${f2(r*.72)} 0 1,1 ${f2(cx-r)},${f2(cy)} Z" fill="${GC_G}" opacity="1"/>`;
+  } else if (dir === 'down') {
+    return `<path d="M${f2(cx-r)},${f2(cy)} A${f2(r)},${f2(r)} 0 1,1 ${f2(cx+r)},${f2(cy)} A${f2(r*.72)},${f2(r*.72)} 0 1,0 ${f2(cx-r)},${f2(cy)} Z" fill="${GC_G}" opacity="1"/>`;
+  } else if (dir === 'right') {
+    return `<path d="M${f2(cx)},${f2(cy-r)} A${f2(r)},${f2(r)} 0 1,1 ${f2(cx)},${f2(cy+r)} A${f2(r*.72)},${f2(r*.72)} 0 1,0 ${f2(cx)},${f2(cy-r)} Z" fill="${GC_G}" opacity="1"/>`;
+  } else {
+    return `<path d="M${f2(cx)},${f2(cy-r)} A${f2(r)},${f2(r)} 0 1,0 ${f2(cx)},${f2(cy+r)} A${f2(r*.72)},${f2(r*.72)} 0 1,1 ${f2(cx)},${f2(cy-r)} Z" fill="${GC_G}" opacity="1"/>`;
+  }
+}
+
+/* ──────────────────────────────────────
+   FRAME 1 — 코너 사각형 + 상하 8점 별 (카드1,4 스타일)
+────────────────────────────────────── */
+function _gcFrame1(W, H) {
+  const p = 10, p2 = 15;
+  const cs = 7;
+  let s = '';
+  s += `<rect x="${p}" y="${p}" width="${W-p*2}" height="${H-p*2}" rx="2" fill="none" stroke="${GC_G}" stroke-width="1" opacity=".80"/>`;
+  s += `<rect x="${p2}" y="${p2}" width="${W-p2*2}" height="${H-p2*2}" rx="1" fill="none" stroke="${GC_G}" stroke-width=".45" opacity=".40"/>`;
+  // 코너 45° 사각형
+  [[p,p],[W-p,p],[p,H-p],[W-p,H-p]].forEach(([cx,cy]) => {
+    s += `<rect x="${_gcF2(cx-cs/2)}" y="${_gcF2(cy-cs/2)}" width="${cs}" height="${cs}" fill="none" stroke="${GC_G}" stroke-width=".7" opacity=".7" transform="rotate(45,${_gcF2(cx)},${_gcF2(cy)})"/>`;
+  });
+  // 상하 8점 별
+  s += _gcStar8pt(W/2, p, 4.5, 2, .90);
+  s += _gcStar8pt(W/2, H-p, 4.5, 2, .90);
+  return s;
+}
+
+/* FRAME 2 — 상하 노치 + 코너 대형 8점 별 (카드2 스타일) */
+function _gcFrame2(W, H) {
+  const p = 10;
+  let s = '';
+  s += `<rect x="${p}" y="${p}" width="${W-p*2}" height="${H-p*2}" rx="2" fill="none" stroke="${GC_G}" stroke-width="1" opacity=".80"/>`;
+  s += `<rect x="${p+5}" y="${p+5}" width="${W-p*2-10}" height="${H-p*2-10}" rx="1" fill="none" stroke="${GC_G}" stroke-width=".4" opacity=".35"/>`;
+  // 상단 노치
+  s += `<path d="M${_gcF2(W/2-28)},${_gcF2(p+5)} L${_gcF2(W/2-8)},${_gcF2(p+5)} L${_gcF2(W/2-8)},${_gcF2(p)} M${_gcF2(W/2+8)},${_gcF2(p)} L${_gcF2(W/2+8)},${_gcF2(p+5)} L${_gcF2(W/2+28)},${_gcF2(p+5)}" fill="none" stroke="${GC_G}" stroke-width=".6" opacity=".7"/>`;
+  s += `<path d="M${_gcF2(W/2-28)},${_gcF2(H-p-5)} L${_gcF2(W/2-8)},${_gcF2(H-p-5)} L${_gcF2(W/2-8)},${_gcF2(H-p)} M${_gcF2(W/2+8)},${_gcF2(H-p)} L${_gcF2(W/2+8)},${_gcF2(H-p-5)} L${_gcF2(W/2+28)},${_gcF2(H-p-5)}" fill="none" stroke="${GC_G}" stroke-width=".6" opacity=".7"/>`;
+  // 코너 대형 8점 별
+  const off = 22;
+  [[p+off,p+off],[W-p-off,p+off],[p+off,H-p-off],[W-p-off,H-p-off]].forEach(([cx,cy]) =>
+    { s += _gcStar8pt(cx, cy, 9.5, 4.2, .85); }
+  );
+  // 점 도트 세로
+  for (let y = p+20; y < H-p-20; y += 8) {
+    s += `<circle cx="${_gcF2(p+3)}" cy="${_gcF2(y)}" r="1" fill="${GC_G}" opacity=".35"/>`;
+    s += `<circle cx="${_gcF2(W-p-3)}" cy="${_gcF2(y)}" r="1" fill="${GC_G}" opacity=".35"/>`;
+  }
+  return s;
+}
+
+/* FRAME 3 — 코너 초승달 (카드3 스타일) */
+function _gcFrame3(W, H) {
+  const p = 10, cs = 6;
+  let s = '';
+  s += `<rect x="${p}" y="${p}" width="${W-p*2}" height="${H-p*2}" rx="2" fill="none" stroke="${GC_G}" stroke-width="1" opacity=".78"/>`;
+  // 코너 초승달 (뿔 바깥)
+  s += _gcCrescent(p,   p,   cs, 'right');
+  s += _gcCrescent(W-p, p,   cs, 'left');
+  s += _gcCrescent(p,   H-p, cs, 'right');
+  s += _gcCrescent(W-p, H-p, cs, 'left');
+  // 좌우 장식
+  for (let i = 0; i < 4; i++) {
+    const y = H/2 - 9 + i*6;
+    s += `<line x1="${_gcF2(p+1)}" y1="${_gcF2(y)}" x2="${_gcF2(p+7)}" y2="${_gcF2(y)}" stroke="${GC_G}" stroke-width=".7" opacity=".5"/>`;
+    s += `<line x1="${_gcF2(W-p-7)}" y1="${_gcF2(y)}" x2="${_gcF2(W-p-1)}" y2="${_gcF2(y)}" stroke="${GC_G}" stroke-width=".7" opacity=".5"/>`;
+  }
+  s += `<circle cx="${_gcF2(p+4)}" cy="${_gcF2(H/2)}" r="2" fill="${GC_G}" opacity=".55"/>`;
+  s += `<circle cx="${_gcF2(W-p-4)}" cy="${_gcF2(H/2)}" r="2" fill="${GC_G}" opacity=".55"/>`;
+  return s;
+}
+
+/* FRAME 4 — 점선 내선 + 코너 다이아 + 상하 장식 바 (카드4 스타일) */
+function _gcFrame4(W, H) {
+  const p = 10, p2 = 16;
+  let s = '';
+  s += `<rect x="${p}" y="${p}" width="${W-p*2}" height="${H-p*2}" rx="2" fill="none" stroke="${GC_G}" stroke-width="1" opacity=".80"/>`;
+  s += `<rect x="${p2}" y="${p2}" width="${W-p2*2}" height="${H-p2*2}" rx="1" fill="none" stroke="${GC_G}" stroke-width=".5" stroke-dasharray="1.5 3" opacity=".38"/>`;
+  // 코너 4점 별
+  [[p2,p2],[W-p2,p2],[p2,H-p2],[W-p2,H-p2]].forEach(([cx,cy]) =>
+    { s += _gcStar4pt(cx, cy, 4, 1.8, .75); }
+  );
+  // 상하 장식 바
+  [p2, H-p2].forEach(y => {
+    s += _gcStar8pt(W/2, y, 5.5, 2.5, .88);
+    s += `<line x1="${_gcF2(p2+14)}" y1="${_gcF2(y)}" x2="${_gcF2(W/2-9)}" y2="${_gcF2(y)}" stroke="${GC_G}" stroke-width=".6" opacity=".55"/>`;
+    s += `<line x1="${_gcF2(W/2+9)}" y1="${_gcF2(y)}" x2="${_gcF2(W-p2-14)}" y2="${_gcF2(y)}" stroke="${GC_G}" stroke-width=".6" opacity=".55"/>`;
+    s += `<circle cx="${_gcF2(p2+8)}" cy="${_gcF2(y)}" r="1" fill="${GC_G}" opacity=".6"/>`;
+    s += `<circle cx="${_gcF2(W-p2-8)}" cy="${_gcF2(y)}" r="1" fill="${GC_G}" opacity=".6"/>`;
+    s += _gcStar4pt(W/2-18, y, 2.5, 1, .65);
+    s += _gcStar4pt(W/2+18, y, 2.5, 1, .65);
+  });
+  return s;
+}
+
+/* ──────────────────────────────────────
+   카드 텍스트 레이어 (공통)
+────────────────────────────────────── */
+function _gcBuildCardText(W, H, catLabel, accept, risk) {
+  const pad = 10;
+  const accPct = accept !== undefined ? Math.round(accept * 100) + '%' : '';
+  const riskPct = risk  !== undefined ? Math.round(risk  * 100) + '%' : '';
+  let s = '';
+
+  s += `<text x="${W/2}" y="${pad+26}" text-anchor="middle" font-family="Georgia,serif" font-size="10.5" letter-spacing="4.5" fill="${GC_GL}" opacity=".88">S I G N A L</text>`;
+  s += `<line x1="${pad+24}" y1="${pad+33}" x2="${W-pad-24}" y2="${pad+33}" stroke="${GC_G}" stroke-width=".45" opacity=".38"/>`;
+  if (catLabel) {
+    s += `<text x="${W/2}" y="${pad+42}" text-anchor="middle" font-family="Georgia,serif" font-size="7" letter-spacing="2.5" fill="${GC_G}" opacity=".60">${catLabel.toUpperCase()}</text>`;
+  }
+
+  if (accPct) {
+    const by = H - pad - 28;
+    s += `<line x1="${pad+24}" y1="${by-4}" x2="${W-pad-24}" y2="${by-4}" stroke="${GC_G}" stroke-width=".45" opacity=".38"/>`;
+    s += `<text x="${W/2-40}" y="${by+10}" text-anchor="middle" font-family="Georgia,serif" font-size="8.5" letter-spacing="1" fill="${GC_G}" opacity=".72">${accPct}</text>`;
+    s += `<text x="${W/2}" y="${by+10}" text-anchor="middle" font-family="Georgia,serif" font-size="8" fill="${GC_G}" opacity=".4">·</text>`;
+    s += `<text x="${W/2+40}" y="${by+10}" text-anchor="middle" font-family="Georgia,serif" font-size="8.5" letter-spacing="1" fill="${GC_G}" opacity=".72">${riskPct}</text>`;
+    s += `<text x="${W/2-40}" y="${by+20}" text-anchor="middle" font-family="Georgia,serif" font-size="5.5" letter-spacing="1.5" fill="${GC_G}" opacity=".45">ACCEPT</text>`;
+    s += `<text x="${W/2+40}" y="${by+20}" text-anchor="middle" font-family="Georgia,serif" font-size="5.5" letter-spacing="1.5" fill="${GC_G}" opacity=".45">RISK</text>`;
+  }
+
+  s += `<text x="${W/2}" y="${H-pad-12}" text-anchor="middle" font-family="Georgia,serif" font-size="6" letter-spacing="2" fill="${GC_G}" opacity=".38">— ORACLE · GOLD —</text>`;
+  return s;
+}
+
+/* ──────────────────────────────────────
+   SYMBOL 1: COSMIC EYE (카드1 스타일)
+   아몬드 눈 + 중앙 태양광선 (얼굴 없음)
+────────────────────────────────────── */
+function _gcSymCosmicEye(cx, cy, R) {
+  const ew = R * 1.62, eh = R * 0.76;
+  const sunR = R * 0.44;
+  let s = '';
+
+  // 배경 방사선
+  for (let i = 0; i < 24; i++) {
+    const a = _gcRad(i * 15 - 90);
+    s += `<line x1="${_gcF2(cx+Math.cos(a)*R*1.1)}" y1="${_gcF2(cy+Math.sin(a)*R*1.1)}" x2="${_gcF2(cx+Math.cos(a)*R*2.2)}" y2="${_gcF2(cy+Math.sin(a)*R*2.2)}" stroke="${GC_G}" stroke-width=".5" opacity=".11"/>`;
+  }
+
+  // 눈 아몬드 외곽선 (위 호 + 아래 호)
+  const ex1 = cx - ew, ex2 = cx + ew;
+  s += `<path d="M${_gcF2(ex1)},${_gcF2(cy)} A${_gcF2(ew)},${_gcF2(eh)} 0 0,1 ${_gcF2(ex2)},${_gcF2(cy)}" fill="none" stroke="${GC_G}" stroke-width="1.1" opacity=".90" stroke-linecap="round"/>`;
+  s += `<path d="M${_gcF2(ex1)},${_gcF2(cy)} A${_gcF2(ew)},${_gcF2(eh)} 0 0,0 ${_gcF2(ex2)},${_gcF2(cy)}" fill="none" stroke="${GC_G}" stroke-width="1.1" opacity=".90" stroke-linecap="round"/>`;
+  // 눈 내부 이중선
+  s += `<path d="M${_gcF2(cx-ew*.78)},${_gcF2(cy)} A${_gcF2(ew*.78)},${_gcF2(eh*.72)} 0 0,1 ${_gcF2(cx+ew*.78)},${_gcF2(cy)}" fill="none" stroke="${GC_G}" stroke-width=".38" opacity=".38"/>`;
+  s += `<path d="M${_gcF2(cx-ew*.78)},${_gcF2(cy)} A${_gcF2(ew*.78)},${_gcF2(eh*.72)} 0 0,0 ${_gcF2(cx+ew*.78)},${_gcF2(cy)}" fill="none" stroke="${GC_G}" stroke-width=".38" opacity=".38"/>`;
+
+  // 태양 광선 16개 (긴 8 + 짧은 8 교대, 얼굴 없음)
+  for (let i = 0; i < 16; i++) {
+    const a = _gcRad(i * 22.5 - 90);
+    const isMain = i % 2 === 0;
+    s += `<line x1="${_gcF2(cx+Math.cos(a)*sunR*1.05)}" y1="${_gcF2(cy+Math.sin(a)*sunR*1.05)}" x2="${_gcF2(cx+Math.cos(a)*(isMain?sunR*1.62:sunR*1.28))}" y2="${_gcF2(cy+Math.sin(a)*(isMain?sunR*1.62:sunR*1.28))}" stroke="${GC_G}" stroke-width="${isMain?'1.0':'.65'}" opacity="${isMain?'.88':'.60'}"/>`;
+  }
+  // 태양 솔리드 원
+  s += `<circle cx="${_gcF2(cx)}" cy="${_gcF2(cy)}" r="${_gcF2(sunR)}" fill="${GC_G}" opacity="1"/>`;
+  s += `<circle cx="${_gcF2(cx)}" cy="${_gcF2(cy)}" r="${_gcF2(sunR*.72)}" fill="none" stroke="${GC_BG}" stroke-width=".8" opacity=".55"/>`;
+  s += `<circle cx="${_gcF2(cx)}" cy="${_gcF2(cy)}" r="${_gcF2(sunR*.42)}" fill="${GC_BG}" opacity=".9"/>`;
+
+  // 코너 대형 8점 별 4개
+  const cs = R * 1.12;
+  [[-cs,-cs*1.0],[cs,-cs*1.0],[-cs,cs*1.0],[cs,cs*1.0]].forEach(([dx,dy]) =>
+    { s += _gcStar8pt(cx+dx, cy+dy, 8, 3.5, .82); }
+  );
+  // 소형 4점 별
+  [[-R*1.6,0],[R*1.6,0],[0,-R*1.5],[0,R*1.5]].forEach(([dx,dy]) =>
+    { s += _gcStar4pt(cx+dx, cy+dy, 4.5, 2, .65); }
+  );
+  // 눈 끝 점
+  s += `<circle cx="${_gcF2(ex1)}" cy="${_gcF2(cy)}" r="2" fill="${GC_G}" opacity=".75"/>`;
+  s += `<circle cx="${_gcF2(ex2)}" cy="${_gcF2(cy)}" r="2" fill="${GC_G}" opacity=".75"/>`;
+  // 태양 주변 아크 점들
+  for (let i = 0; i < 12; i++) {
+    const [px, py] = _gcPolar(cx, cy, R*.72, i*30);
+    s += `<circle cx="${_gcF2(px)}" cy="${_gcF2(py)}" r=".9" fill="${GC_GL}" opacity=".45"/>`;
+  }
+  return s;
+}
+
+/* ──────────────────────────────────────
+   SYMBOL 2: TRIPLE MOON (카드2 스타일)
+   세로 3달 위상 — 완전 얼굴 없음
+────────────────────────────────────── */
+function _gcSymTripleMoon(cx, cy, R) {
+  const mr  = R * 0.48;   // 보름달
+  const cr  = R * 0.34;   // 초승달
+  const gap = R * 1.15;
+  let s = '';
+
+  // 중앙 보름달 (솔리드)
+  s += `<circle cx="${_gcF2(cx)}" cy="${_gcF2(cy)}" r="${_gcF2(mr)}" fill="${GC_G}" opacity="1"/>`;
+
+  // 상단 초승달 (뿔 위, U자)
+  s += `<path d="M${_gcF2(cx-cr)},${_gcF2(cy-gap)} A${_gcF2(cr)},${_gcF2(cr)} 0 1,0 ${_gcF2(cx+cr)},${_gcF2(cy-gap)} A${_gcF2(cr*.70)},${_gcF2(cr*.70)} 0 1,1 ${_gcF2(cx-cr)},${_gcF2(cy-gap)} Z" fill="${GC_G}" opacity="1"/>`;
+
+  // 하단 초승달 (뿔 아래, ∩자)
+  s += `<path d="M${_gcF2(cx-cr)},${_gcF2(cy+gap)} A${_gcF2(cr)},${_gcF2(cr)} 0 1,1 ${_gcF2(cx+cr)},${_gcF2(cy+gap)} A${_gcF2(cr*.70)},${_gcF2(cr*.70)} 0 1,0 ${_gcF2(cx-cr)},${_gcF2(cy+gap)} Z" fill="${GC_G}" opacity="1"/>`;
+
+  // 상하 8점 별
+  s += _gcStar8pt(cx, cy-gap*1.72, 7, 3.2, .88);
+  s += _gcStar8pt(cx, cy+gap*1.72, 7, 3.2, .88);
+
+  // 코너 대형 8점 별
+  [[-R*1.3,-R*0.7],[R*1.3,-R*0.7],[-R*1.3,R*0.7],[R*1.3,R*0.7]].forEach(([dx,dy]) =>
+    { s += _gcStar8pt(cx+dx, cy+dy, 9.5, 4.2, .85); }
+  );
+
+  // 보름달 좌우 소형 4점 별
+  s += _gcStar4pt(cx-mr*1.6, cy, 3.5, 1.5, .72);
+  s += _gcStar4pt(cx+mr*1.6, cy, 3.5, 1.5, .72);
+
+  // 점 다이아 아크
+  for (let i = 0; i < 16; i++) {
+    const [px, py] = _gcPolar(cx, cy, R*.78, i*22.5);
+    s += `<circle cx="${_gcF2(px)}" cy="${_gcF2(py)}" r="1" fill="${GC_G}" opacity=".30"/>`;
+  }
+
+  // 세로 연결선
+  s += `<line x1="${_gcF2(cx)}" y1="${_gcF2(cy-gap+cr)}" x2="${_gcF2(cx)}" y2="${_gcF2(cy-mr)}" stroke="${GC_G}" stroke-width=".55" opacity=".45"/>`;
+  s += `<line x1="${_gcF2(cx)}" y1="${_gcF2(cy+mr)}" x2="${_gcF2(cx)}" y2="${_gcF2(cy+gap-cr)}" stroke="${GC_G}" stroke-width=".55" opacity=".45"/>`;
+
+  // 주변 소형 별들
+  [[-R*.55,-gap-cr*1.2],[R*.55,-gap-cr*1.2],[-R*.55,gap+cr*1.2],[R*.55,gap+cr*1.2]].forEach(([dx,dy]) =>
+    { s += _gcStar4pt(cx+dx, cy+dy, 3, 1.3, .58); }
+  );
+  return s;
+}
+
+/* ──────────────────────────────────────
+   SYMBOL 3: SUN WAVES (카드3 스타일)
+   물결 광선 태양 + 상하 달 위상 시퀀스
+────────────────────────────────────── */
+function _gcSymSunWaves(cx, cy, R) {
+  const sunR = R * 0.45;
+  const sr   = R * 0.155;  // 시퀀스 달 반지름
+  const sgap = R * 0.48;
+  const seqY1 = cy - R * 1.38;
+  const seqY2 = cy + R * 1.38;
+  let s = '';
+
+  // 배경 별들
+  for (let i = 0; i < 8; i++) {
+    const [px, py] = _gcPolar(cx, cy, R*1.45, i*45+22.5);
+    s += _gcStar4pt(px, py, 3, 1.2, .52);
+  }
+  for (let i = 0; i < 8; i++) {
+    const [px, py] = _gcPolar(cx, cy, R*1.1, i*45);
+    s += `<circle cx="${_gcF2(px)}" cy="${_gcF2(py)}" r=".9" fill="${GC_GL}" opacity=".38"/>`;
+  }
+
+  // 물결 광선 12개
+  for (let i = 0; i < 12; i++) {
+    const a0 = _gcRad(i*30-90), a1 = _gcRad(i*30+12-90), a2 = _gcRad(i*30+24-90);
+    const p1x = cx+Math.cos(a0)*sunR*1.06, p1y = cy+Math.sin(a0)*sunR*1.06;
+    const p2x = cx+Math.cos(a1)*sunR*1.55, p2y = cy+Math.sin(a1)*sunR*1.55;
+    const p3x = cx+Math.cos(a2)*sunR*2.05, p3y = cy+Math.sin(a2)*sunR*2.05;
+    s += `<path d="M${_gcF2(p1x)},${_gcF2(p1y)} Q${_gcF2(p2x)},${_gcF2(p2y)} ${_gcF2(p3x)},${_gcF2(p3y)}" fill="none" stroke="${GC_G}" stroke-width="1.1" opacity=".78" stroke-linecap="round"/>`;
+  }
+
+  // 태양 본체 (얼굴 없음)
+  s += `<circle cx="${_gcF2(cx)}" cy="${_gcF2(cy)}" r="${_gcF2(sunR)}" fill="${GC_G}" opacity="1"/>`;
+  s += `<circle cx="${_gcF2(cx)}" cy="${_gcF2(cy)}" r="${_gcF2(sunR*.68)}" fill="none" stroke="${GC_BG}" stroke-width=".9" opacity=".55"/>`;
+  s += `<circle cx="${_gcF2(cx)}" cy="${_gcF2(cy)}" r="${_gcF2(sunR*.38)}" fill="${GC_BG}" opacity=".88"/>`;
+  s += `<circle cx="${_gcF2(cx)}" cy="${_gcF2(cy)}" r="${_gcF2(sunR*.18)}" fill="${GC_GL}" opacity=".72"/>`;
+
+  // 상하 달 위상 시퀀스
+  [seqY1, seqY2].forEach(seqY => {
+    s += _gcCrescent(cx-sgap, seqY, sr, 'left');
+    s += `<circle cx="${_gcF2(cx)}" cy="${_gcF2(seqY)}" r="${_gcF2(sr)}" fill="${GC_G}" opacity="1"/>`;
+    s += _gcCrescent(cx+sgap, seqY, sr, 'right');
+    s += `<line x1="${_gcF2(cx-sgap+sr)}" y1="${_gcF2(seqY)}" x2="${_gcF2(cx-sr)}" y2="${_gcF2(seqY)}" stroke="${GC_G}" stroke-width=".6" opacity=".50"/>`;
+    s += `<line x1="${_gcF2(cx+sr)}" y1="${_gcF2(seqY)}" x2="${_gcF2(cx+sgap-sr)}" y2="${_gcF2(seqY)}" stroke="${GC_G}" stroke-width=".6" opacity=".50"/>`;
+    s += `<line x1="${_gcF2(cx-R*1.6)}" y1="${_gcF2(seqY)}" x2="${_gcF2(cx-sgap-sr*1.3)}" y2="${_gcF2(seqY)}" stroke="${GC_G}" stroke-width=".45" opacity=".45"/>`;
+    s += `<line x1="${_gcF2(cx+sgap+sr*1.3)}" y1="${_gcF2(seqY)}" x2="${_gcF2(cx+R*1.6)}" y2="${_gcF2(seqY)}" stroke="${GC_G}" stroke-width=".45" opacity=".45"/>`;
+  });
+  return s;
+}
+
+/* ──────────────────────────────────────
+   SYMBOL 4: SUNBURST (카드4 스타일)
+   방사 직선 광선 + 중앙 8점 별 + 좌우 초승달
+────────────────────────────────────── */
+function _gcSymSunburst(cx, cy, R) {
+  const sr    = R * 0.32;
+  const moonR = R * 0.36;
+  const moonX = R * 1.28;
+  let s = '';
+
+  // 긴 광선 16개
+  for (let i = 0; i < 16; i++) {
+    const a = _gcRad(i*22.5-90);
+    s += `<line x1="${_gcF2(cx+Math.cos(a)*sr*1.08)}" y1="${_gcF2(cy+Math.sin(a)*sr*1.08)}" x2="${_gcF2(cx+Math.cos(a)*R*2.1)}" y2="${_gcF2(cy+Math.sin(a)*R*2.1)}" stroke="${GC_G}" stroke-width="1.0" opacity=".65"/>`;
+  }
+  // 보조 짧은 광선 16개 (11.25° 어긋)
+  for (let i = 0; i < 16; i++) {
+    const a = _gcRad(i*22.5+11.25-90);
+    s += `<line x1="${_gcF2(cx+Math.cos(a)*sr*1.1)}" y1="${_gcF2(cy+Math.sin(a)*sr*1.1)}" x2="${_gcF2(cx+Math.cos(a)*R*1.35)}" y2="${_gcF2(cy+Math.sin(a)*R*1.35)}" stroke="${GC_G}" stroke-width=".55" opacity=".38"/>`;
+  }
+
+  // 이중 링
+  s += `<circle cx="${_gcF2(cx)}" cy="${_gcF2(cy)}" r="${_gcF2(sr*1.28)}" fill="none" stroke="${GC_G}" stroke-width=".8" opacity=".72"/>`;
+  s += `<circle cx="${_gcF2(cx)}" cy="${_gcF2(cy)}" r="${_gcF2(sr)}" fill="none" stroke="${GC_G}" stroke-width="1.1" opacity=".88"/>`;
+
+  // 중앙 8점 별 (솔리드 배경 + 별 컷)
+  s += `<circle cx="${_gcF2(cx)}" cy="${_gcF2(cy)}" r="${_gcF2(sr*.92)}" fill="${GC_G}" opacity="1"/>`;
+  {
+    const pts = [];
+    for (let i = 0; i < 8; i++) {
+      const [ox,oy] = _gcPolar(cx, cy, sr*.92, i*45);
+      const [ix,iy] = _gcPolar(cx, cy, sr*.38, i*45+22.5);
+      pts.push(`${_gcF2(ox)},${_gcF2(oy)} ${_gcF2(ix)},${_gcF2(iy)}`);
+    }
+    s += `<polygon points="${pts.join(' ')}" fill="${GC_BG}" opacity=".85"/>`;
+  }
+  s += `<circle cx="${_gcF2(cx)}" cy="${_gcF2(cy)}" r="${_gcF2(sr*.18)}" fill="${GC_GL}" opacity=".9"/>`;
+
+  // 좌우 초승달
+  s += `<path d="M${_gcF2(cx-moonX)},${_gcF2(cy-moonR)} A${_gcF2(moonR)},${_gcF2(moonR)} 0 1,1 ${_gcF2(cx-moonX)},${_gcF2(cy+moonR)} A${_gcF2(moonR*.72)},${_gcF2(moonR*.72)} 0 1,0 ${_gcF2(cx-moonX)},${_gcF2(cy-moonR)} Z" fill="${GC_G}" opacity="1"/>`;
+  s += `<path d="M${_gcF2(cx+moonX)},${_gcF2(cy-moonR)} A${_gcF2(moonR)},${_gcF2(moonR)} 0 1,0 ${_gcF2(cx+moonX)},${_gcF2(cy+moonR)} A${_gcF2(moonR*.72)},${_gcF2(moonR*.72)} 0 1,1 ${_gcF2(cx+moonX)},${_gcF2(cy-moonR)} Z" fill="${GC_G}" opacity="1"/>`;
+
+  // 상하 8점 별
+  s += _gcStar8pt(cx, cy-R*1.55, 6.5, 2.8, .82);
+  s += _gcStar8pt(cx, cy+R*1.55, 6.5, 2.8, .82);
+  return s;
+}
+
+/* ──────────────────────────────────────
+   심볼/프레임 라우터
+────────────────────────────────────── */
+const _GC_CAT_SYM = {
+  love:'cosmic_eye', marriage:'triple_moon', divorce:'triple_moon',
+  family:'cosmic_eye', friend:'triple_moon', relation:'cosmic_eye',
+  money:'sunburst', invest:'sunburst', realestate:'sunburst', debt:'triple_moon',
+  startup:'sun_waves', legal:'cosmic_eye', career:'sun_waves',
+  study:'sun_waves', success:'sunburst', future:'sun_waves',
+  health:'triple_moon', mind:'triple_moon', trauma:'cosmic_eye',
+};
+
+function _gcGetSymbol(symbolKey, cx, cy, R) {
+  switch (symbolKey) {
+    case 'cosmic_eye':  return _gcSymCosmicEye(cx, cy, R);
+    case 'triple_moon': return _gcSymTripleMoon(cx, cy, R);
+    case 'sun_waves':   return _gcSymSunWaves(cx, cy, R);
+    case 'sunburst':    return _gcSymSunburst(cx, cy, R);
+    default:            return _gcSymCosmicEye(cx, cy, R);
+  }
+}
+
+function _gcGetFrame(symbolKey, W, H) {
+  switch (symbolKey) {
+    case 'cosmic_eye':  return _gcFrame1(W, H);
+    case 'triple_moon': return _gcFrame2(W, H);
+    case 'sun_waves':   return _gcFrame3(W, H);
+    case 'sunburst':    return _gcFrame4(W, H);
+    default:            return _gcFrame1(W, H);
+  }
+}
+
+/**
+ * 카드 SVG 빌드 v4 — 참조이미지 4종 심볼
+ */
+function gcBuildSvgCard(cat, accept, risk, summary, W, H) {
+  const cx     = W / 2;
+  const cy     = H * 0.465;
+  const R      = Math.min(W, H) * 0.265;
+  const meta   = _gcCatMeta(cat);
+  const catLbl = meta.label || 'GENERAL';
+  const symKey = _GC_CAT_SYM[cat] || 'cosmic_eye';
+  const vid    = 'gc_' + (cat || 'x') + '_' + W;
+
+  return `
+  <defs>
+    <radialGradient id="gcBg_${vid}" cx="50%" cy="46%" r="58%" gradientUnits="objectBoundingBox">
+      <stop offset="0%"   stop-color="#1c1810"/>
+      <stop offset="45%"  stop-color="#131008"/>
+      <stop offset="82%"  stop-color="#0c0a05"/>
+      <stop offset="100%" stop-color="#070603"/>
+    </radialGradient>
+    <radialGradient id="gcGlow_${vid}" cx="50%" cy="44%" r="38%" gradientUnits="objectBoundingBox">
+      <stop offset="0%"   stop-color="${GC_G}" stop-opacity=".05"/>
+      <stop offset="100%" stop-color="${GC_G}" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="${W}" height="${H}" rx="8" fill="url(#gcBg_${vid})"/>
+  <rect width="${W}" height="${H}" rx="8" fill="url(#gcGlow_${vid})"/>
+  ${_gcStarBg(W, H, 50)}
+  ${_gcGetSymbol(symKey, cx, cy, R)}
+  ${_gcGetFrame(symKey, W, H)}
+  ${_gcBuildCardText(W, H, catLbl, accept, risk)}
+  `;
+}
+
+/* 이전 호환: summary 분리 함수 (saveCardAsImage에서 미사용이지만 유지) */
+function _gcSplitSummaryForSvg(text, maxLen) {
+  if (!text || text.length <= maxLen) return [text || ''];
+  const words = text.split(' ');
+  const lines = [];
+  let cur = '';
+  for (const w of words) {
+    if ((cur + w).length > maxLen && cur.length > 0) { lines.push(cur.trim()); cur = w + ' '; }
+    else cur += w + ' ';
+  }
+  if (cur.trim()) lines.push(cur.trim());
+  return lines.slice(0, 2);
+}
+
+/**
+ * SVG 엘리먼트에 카드 내용 주입
+ */
+function _buildShareCard(r) {
+  if (!r) return;
+  const cat     = r.cat     || 'future';
+  const accept  = r.accept  ?? 0;
+  const risk    = r.risk    ?? 0;
+  const summary = r.summaryText || '오늘의 흐름이 열려 있어.';
+
+  const svgEl = document.getElementById('goldCardSvg');
+  if (!svgEl) return;
+
+  // 카드 실제 크기 읽기 (렌더링 후 크기)
+  const card = document.getElementById('goldSignalCard');
+  const W = card ? Math.round(card.offsetWidth)  : 320;
+  const H = card ? Math.round(card.offsetHeight) : 512;
+
+  svgEl.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svgEl.innerHTML = gcBuildSvgCard(cat, accept, risk, summary, W, H);
+}
+
+/**
+ * 요약 문장을 2줄 이내로 분리 (카드 표시용)
+ */
+function _gcFormatSummary(text) {
+  const clean = text.replace(/\n/g, ' ').trim();
+  // 20자 기준으로 앞뒤 분리
+  if (clean.length <= 22) return clean;
+  const mid = clean.indexOf(' ', 14);
+  if (mid === -1 || mid > 28) {
+    const cut = clean.slice(0, 22);
+    return `${cut}<br>${clean.slice(22)}`;
+  }
+  return `${clean.slice(0, mid)}<br>${clean.slice(mid + 1)}`;
+}
+
+/**
+ * 황금 카드 모달 열기
+ */
+function openGoldCard() {
+  const r = state.currentResult;
+  if (!r) {
+    showToast('먼저 분석 결과를 확인해봐 ✦');
+    return;
+  }
+
+  // GA 이벤트: 골드카드 열기
+  if (typeof gtag !== 'undefined') {
+    gtag('event', 'gold_card_open', {
+      event_category: 'engagement',
+      event_label: r.cat || 'unknown',
+    });
+  }
+
+  const overlay = document.getElementById('goldCardOverlay');
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  // 모달이 레이아웃을 잡은 뒤 SVG 크기 기준으로 카드 생성
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      _buildShareCard(r);
+      _gcSetShine(50, 30);
+    });
+  });
+}
+
+/**
+ * 황금 카드 모달 닫기
+ */
+function closeGoldCard(e) {
+  // 오버레이 바깥 클릭 시만 닫기 (모달 내부 클릭은 무시)
+  if (e && e.target !== document.getElementById('goldCardOverlay')) return;
+  _gcClose();
+}
+
+function _gcClose() {
+  const overlay = document.getElementById('goldCardOverlay');
+  overlay.classList.remove('open');
+  document.body.style.overflow = '';
+  gcTiltReset();
+}
+
+// ── 닫기 버튼 직접 호출용 (오버로드 없이)
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') _gcClose();
+});
+
+// ======================================================================================
+// ✦ 3D Tilt & Shine 효과
+// ======================================================================================
+
+const GC_TILT_MAX = 18;   // 최대 기울기 (deg)
+
+function gcTilt(e) {
+  const card = document.getElementById('goldSignalCard');
+  if (!card) return;
+  const rect = card.getBoundingClientRect();
+  const cx   = rect.left + rect.width  / 2;
+  const cy   = rect.top  + rect.height / 2;
+  const dx   = (e.clientX - cx) / (rect.width  / 2);
+  const dy   = (e.clientY - cy) / (rect.height / 2);
+
+  const rotY =  dx * GC_TILT_MAX;
+  const rotX = -dy * GC_TILT_MAX;
+
+  card.style.transform = `perspective(900px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale(1.02)`;
+
+  // Shine 포지션 (마우스 방향 반대로 → 반사 느낌)
+  const shineX = 50 + dx * 25;
+  const shineY = 50 + dy * 25;
+  _gcSetShine(shineX, shineY);
+}
+
+function gcTiltReset() {
+  const card = document.getElementById('goldSignalCard');
+  if (!card) return;
+  card.style.transform = 'perspective(900px) rotateX(0deg) rotateY(0deg) scale(1)';
+  card.style.transition = 'transform 0.5s ease, box-shadow 0.5s ease';
+  _gcSetShine(50, 30);
+  setTimeout(() => { if (card) card.style.transition = ''; }, 500);
+}
+
+function _gcSetShine(x, y) {
+  const shine = document.getElementById('gcShine');
+  if (!shine) return;
+  shine.style.setProperty('--shine-x', `${x}%`);
+  shine.style.setProperty('--shine-y', `${y}%`);
+}
+
+// ── 터치 기기용 Tilt ──
+let _gcTouchStart = null;
+
+function gcTouchStart(e) {
+  if (e.touches.length !== 1) return;
+  _gcTouchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+}
+
+function gcTouchMove(e) {
+  if (!_gcTouchStart || e.touches.length !== 1) return;
+  const card = document.getElementById('goldSignalCard');
+  if (!card) return;
+
+  const rect = card.getBoundingClientRect();
+  const cx   = rect.left + rect.width  / 2;
+  const cy   = rect.top  + rect.height / 2;
+  const dx   = (e.touches[0].clientX - cx) / (rect.width  / 2);
+  const dy   = (e.touches[0].clientY - cy) / (rect.height / 2);
+
+  const rotY =  dx * GC_TILT_MAX * 0.6;
+  const rotX = -dy * GC_TILT_MAX * 0.6;
+
+  card.style.transform = `perspective(900px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale(1.015)`;
+  _gcSetShine(50 + dx * 20, 50 + dy * 20);
+}
+
+// ======================================================================================
+// ✦ PNG 저장 (html2canvas)
+// ======================================================================================
+
+async function saveCardAsImage() {
+  const card     = document.getElementById('goldSignalCard');
+  const savingEl = document.getElementById('gcSaving');
+  const saveBtn  = document.getElementById('gcSaveBtn');
+
+  if (!card) return;
+
+  // 저장 중 UI
+  savingEl.classList.add('show');
+  saveBtn.disabled = true;
+
+  try {
+    // Tilt 리셋 (캡처 전에 정면으로)
+    gcTiltReset();
+    await new Promise(r => setTimeout(r, 550));
+
+    const canvas = await html2canvas(card, {
+      scale:            3,          // 고해상도 (3배)
+      useCORS:          true,
+      allowTaint:       true,
+      backgroundColor:  null,       // 투명 배경 유지
+      logging:          false,
+      removeContainer:  true,
+    });
+
+    // PNG 다운로드
+    const link      = document.createElement('a');
+    const catMeta   = _gcCatMeta(state.currentResult?.cat || 'future');
+    const accept    = state.currentResult?.accept ?? '';
+    link.download   = `signal-card-${catMeta.label.toLowerCase()}-${accept}.png`;
+    link.href       = canvas.toDataURL('image/png');
+    link.click();
+
+    showToast('✦ 황금 카드가 저장됐어!');
+
+    // GA 이벤트: 카드 저장
+    if (typeof gtag !== 'undefined') {
+      gtag('event', 'card_save', {
+        event_category: 'share',
+        event_label: state.currentResult?.cat || 'unknown',
+      });
+    }
+
+  } catch (err) {
+    console.error('[Signal GoldCard] 캡처 실패:', err);
+    showToast('저장에 실패했어. 다시 시도해봐.');
+  } finally {
+    savingEl.classList.remove('show');
+    saveBtn.disabled = false;
+  }
+}
+
+// ======================================================================================
+// ✦ 공유하기 (Web Share API / 클립보드 fallback)
+// ======================================================================================
+
+async function shareCard() {
+  // GA 이벤트: 공유 시도
+  if (typeof gtag !== 'undefined') {
+    gtag('event', 'card_share', {
+      event_category: 'share',
+      event_label: state.currentResult?.cat || 'unknown',
+    });
+  }
+
+  const r       = state.currentResult;
+  const accept  = r?.accept ?? 0;
+  const risk    = r?.risk   ?? 0;
+  const cat     = r?.cat    || 'future';
+  const meta    = _gcCatMeta(cat);
+  const summary = r?.summaryText || '';
+
+  const shareText =
+    `✦ Signal — 오늘의 ${meta.label} 시그널\n\n` +
+    `가능성 ${accept}% · 리스크 ${risk}%\n` +
+    `"${summary}"\n\n` +
+    `#Signal #운세 #${meta.ribbon.replace('THE ', '')}`;
+
+  // 이미지 포함 공유 (html2canvas → Blob → File)
+  if (navigator.share) {
+    try {
+      const card   = document.getElementById('goldSignalCard');
+      gcTiltReset();
+      await new Promise(r => setTimeout(r, 550));
+
+      const canvas = await html2canvas(card, {
+        scale: 2, useCORS: true, allowTaint: true,
+        backgroundColor: null, logging: false,
+      });
+
+      // canvas → Blob → File
+      const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+      const file = new File([blob], 'signal-card.png', { type: 'image/png' });
+
+      // 파일 공유 지원 여부 확인
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: `Signal — ${meta.label} ${accept}%`,
+          text:  shareText,
+          files: [file],
+        });
+      } else {
+        // 텍스트만 공유
+        await navigator.share({
+          title: `Signal — ${meta.label} ${accept}%`,
+          text:  shareText,
+        });
+      }
+      showToast('✦ 공유 완료!');
+      return;
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.warn('[Signal Share] Web Share 실패, 클립보드로:', err.message);
+      } else {
+        return; // 사용자가 취소
+      }
+    }
+  }
+
+  // Fallback: 클립보드 복사
+  try {
+    await navigator.clipboard.writeText(shareText);
+    showToast('📋 공유 텍스트가 복사됐어!');
+  } catch {
+    showToast('공유 기능을 지원하지 않는 환경이야.');
+  }
+}
+
+// ======================================================================================
+// ✦ 링크 복사 (골드카드 모달 내 버튼)
+// ======================================================================================
+
+async function copyShareLink() {
+  const r      = state.currentResult;
+  const cat    = r?.cat    || 'future';
+  const accept = r?.accept ?? 0;
+  const risk   = r?.risk   ?? 0;
+  const meta   = _gcCatMeta(cat);
+  const summary = r?.summaryText || '';
+
+  const shareText =
+    `✦ Signal — ${meta.label} 시그널\n\n` +
+    `가능성 ${Math.round(accept * 100)}% · 리스크 ${Math.round(risk * 100)}%\n` +
+    `"${summary}"\n\n` +
+    `지금 바로 확인해봐 → ${location.href.split('?')[0]}`;
+
+  const btn = document.getElementById('gcCopyBtn');
+
+  try {
+    await navigator.clipboard.writeText(shareText);
+    showToast('🔗 링크 + 결과가 복사됐어!');
+    if (btn) {
+      btn.classList.add('copied');
+      btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="20,6 9,17 4,12"/></svg> 복사됨`;
+      setTimeout(() => {
+        btn.classList.remove('copied');
+        btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> 링크`;
+      }, 2200);
+    }
+  } catch {
+    showToast('클립보드 접근이 안 되는 환경이야.');
+  }
+}
+
+// ======================================================================================
+// ✦ 피드백 제출
+// ======================================================================================
+
+function submitFeedback(type) {
+  const r       = state.currentResult;
+  const helpBtn = document.getElementById('fbHelp');
+  const nopeBtn = document.getElementById('fbNope');
+  const btns    = document.getElementById('feedbackBlock')?.querySelector('.feedback-btns');
+  const done    = document.getElementById('feedbackDone');
+  const doneText = document.getElementById('feedbackDoneText');
+
+  if (!r) return;
+
+  // 버튼 선택 표시
+  if (type === 'helpful') {
+    helpBtn?.classList.add('selected');
+    nopeBtn?.classList.remove('selected');
+    if (doneText) doneText.textContent = '고마워 ✦ 계속 더 잘할게!';
+  } else {
+    nopeBtn?.classList.add('selected');
+    helpBtn?.classList.remove('selected');
+    if (doneText) doneText.textContent = '솔직하게 말해줘서 고마워. 더 잘할게!';
+  }
+
+  // 버튼 비활성화 후 완료 메시지 표시
+  [helpBtn, nopeBtn].forEach(b => { if (b) b.disabled = true; });
+  setTimeout(() => {
+    if (btns) btns.style.display = 'none';
+    if (done) done.style.display = 'block';
+  }, 500);
+
+  // 로컬 스토리지에 기록 (분석 결과 ID 기반)
+  try {
+    const key  = 'signal_feedback';
+    const prev = JSON.parse(localStorage.getItem(key) || '[]');
+    prev.push({
+      ts:      Date.now(),
+      cat:     r.cat    || 'unknown',
+      accept:  r.accept ?? 0,
+      risk:    r.risk   ?? 0,
+      type,                          // 'helpful' | 'not_helpful'
+    });
+    // 최근 50개만 보존
+    localStorage.setItem(key, JSON.stringify(prev.slice(-50)));
+  } catch (e) { /* 스토리지 권한 없어도 무시 */ }
+
+  showToast(type === 'helpful' ? '✦ 도움이 됐다니 다행이야!' : '✦ 피드백 고마워, 개선할게!');
+
+  // GA 이벤트: 피드백 제출
+  if (typeof gtag !== 'undefined') {
+    gtag('event', 'feedback_submit', {
+      event_category: 'feedback',
+      event_label: type,
+      value: r.accept ?? 0,
+    });
+  }
+
+  // Supabase: 피드백 저장
+  _sbInsert('signal_feedback', {
+    category:      r.cat    || 'unknown',
+    accept:        parseInt(r.accept) || 0,
+    risk:          parseInt(r.risk)   || 0,
+    feedback_type: type,
+  });
+}
+
+// ======================================================================================
+// ✦ 결과 화면 진입 시 피드백 블록 초기화
+// ======================================================================================
+
+function _resetFeedbackBlock() {
+  const helpBtn  = document.getElementById('fbHelp');
+  const nopeBtn  = document.getElementById('fbNope');
+  const btns     = document.getElementById('feedbackBlock')?.querySelector('.feedback-btns');
+  const done     = document.getElementById('feedbackDone');
+  const question = document.getElementById('feedbackBlock')?.querySelector('.feedback-question');
+
+  [helpBtn, nopeBtn].forEach(b => {
+    if (!b) return;
+    b.classList.remove('selected');
+    b.disabled = false;
+  });
+  if (btns)     btns.style.display = '';
+  if (done)     done.style.display = 'none';
 }
