@@ -365,6 +365,22 @@ const ANALYSIS = {
   }
 };
 
+// ==================== QUESTION INPUT 헬퍼 ====================
+// 대시보드(로그인) 또는 게스트 홈 중 활성화된 textarea 반환
+function _getQuestionEl() {
+  const dash  = document.getElementById('questionInput');
+  const guest = document.getElementById('guestQuestionInput');
+  // 대시보드가 보이면 대시보드 폼 우선
+  const dashVisible = document.getElementById('signalDashboard')?.style.display !== 'none';
+  if (dashVisible && dash) return dash;
+  return guest || dash;
+}
+function _getCharCountEl() {
+  const dashVisible = document.getElementById('signalDashboard')?.style.display !== 'none';
+  if (dashVisible) return document.getElementById('charCount');
+  return document.getElementById('guestCharCount') || document.getElementById('charCount');
+}
+
 // ==================== INIT ====================
 document.addEventListener('DOMContentLoaded', () => {
   initYearDropdown();
@@ -374,7 +390,210 @@ document.addEventListener('DOMContentLoaded', () => {
   initParticles();
   initTextarea();
   updateProfileDisplay();
+  renderHomeScreen(); // 로그인 여부에 따라 홈 화면 결정
 });
+
+// ==================== HOME SCREEN ROUTER ====================
+function renderHomeScreen() {
+  const mem      = _memLoad();
+  const hasName  = !!state.name;
+  const hasMem   = mem.length >= 1;
+
+  const dashboard = document.getElementById('signalDashboard');
+  const guestHome = document.getElementById('guestHome');
+
+  if (hasName && hasMem) {
+    // ★ 로그인 홈: Signal이 날 알고 있는 상태
+    if (dashboard) dashboard.style.display = '';
+    if (guestHome) guestHome.style.display = 'none';
+    _renderDashboard(mem);
+  } else {
+    // ★ 비로그인 홈: 기존 폼
+    if (dashboard) dashboard.style.display = 'none';
+    if (guestHome) guestHome.style.display = '';
+  }
+}
+
+function _renderDashboard(items) {
+  const nn    = state.name ? state.name.split(' ')[0] : '너';
+  const trend = _calcEmotionTrend(items);
+  const { patterns } = _detectPatterns(items);
+  const now   = new Date();
+
+  // 날짜
+  const dateEl = document.getElementById('dashDate');
+  if (dateEl) {
+    const days = ['일','월','화','수','목','금','토'];
+    dateEl.textContent = `${now.getMonth()+1}월 ${now.getDate()}일 ${days[now.getDay()]}요일`;
+  }
+
+  // 인사
+  const greetEl = document.getElementById('dashGreeting');
+  if (greetEl) {
+    const hour = now.getHours();
+    const timeGreet = hour < 12 ? '좋은 아침이야,' : hour < 18 ? '안녕,' : '오늘 하루 어땠어,';
+    greetEl.textContent = `${timeGreet} ${nn}.`;
+  }
+
+  // 오늘의 Signal 메시지
+  _renderTodaySignal(items, trend, nn, patterns);
+
+  // 감정 상태
+  _renderDashEmotions(items, trend);
+
+  // 기억
+  _renderDashMemory(patterns);
+
+  // 변화
+  _renderDashChanges(trend);
+}
+
+function _renderTodaySignal(items, trend, nn, patterns) {
+  const msgEl = document.getElementById('todaySignalMsg');
+  const subEl = document.getElementById('todaySignalSub');
+  if (!msgEl || !subEl) return;
+
+  const topPat = patterns[0];
+  let msg = '', sub = '';
+
+  if (trend) {
+    const anxDelta = trend.anxiety.now - trend.anxiety.old;
+    const actDelta = trend.action.now  - trend.action.old;
+
+    if (actDelta > 8 && anxDelta < 0) {
+      msg = `최근 실행력이 높아졌어.`;
+      sub = `오늘은 작은 행동 하나를 추천해. 생각보다 더 잘 될 거야.`;
+    } else if (anxDelta > 8) {
+      msg = `요즘 불안이 조금 높아졌어.`;
+      sub = `지금 가장 무거운 게 뭔지 꺼내봐. 같이 읽어볼게.`;
+    } else if (trend.hope.now > trend.hope.old + 5) {
+      msg = `기대감이 올라오고 있어.`;
+      sub = `흐름이 좋아지고 있어. 지금 이 에너지 놓치지 마.`;
+    } else if (trend.confidence.now > trend.confidence.old + 5) {
+      msg = `자신감이 조금씩 올라오고 있어.`;
+      sub = `Signal이 보기엔 지금 방향이 맞아. 계속 가도 돼.`;
+    } else {
+      msg = `${nn}의 흐름을 계속 읽고 있어.`;
+      sub = `오늘도 편하게 이야기해줘. 함께 볼게.`;
+    }
+  } else {
+    if (topPat) {
+      const label = CATEGORIES[topPat.key]?.label || topPat.key;
+      msg = `${label} 고민이 계속 돌아오고 있어.`;
+      sub = `반복된다는 건 아직 해소가 안 됐다는 거야. 오늘 다시 꺼내봐.`;
+    } else {
+      msg = `Signal이 ${nn}을 기억하고 있어.`;
+      sub = `오늘 어떤 흐름이 궁금해?`;
+    }
+  }
+
+  msgEl.textContent = msg;
+  subEl.textContent = sub;
+}
+
+function _renderDashEmotions(items, trend) {
+  const el = document.getElementById('dashEmotionRow');
+  if (!el) return;
+
+  const latest = items[0];
+  const emotions = [
+    { key: 'anxiety',    label: '불안',   color: '#F87171' },
+    { key: 'confidence', label: '자신감', color: '#6EE7D8' },
+    { key: 'action',     label: '실행력', color: '#FCD34D' },
+  ];
+
+  el.innerHTML = emotions.map(em => {
+    const val = Math.round(latest?.emotion?.[em.key] || 50);
+    return `
+      <div class="dashboard-emotion-item">
+        <span class="dashboard-emotion-label">${em.label}</span>
+        <div class="dashboard-emotion-bar-wrap">
+          <div class="dashboard-emotion-bar" style="width:0%;background:${em.color};" data-pct="${val}"></div>
+        </div>
+        <span class="dashboard-emotion-pct">${val}%</span>
+      </div>`;
+  }).join('');
+
+  // 바 애니메이션
+  setTimeout(() => {
+    el.querySelectorAll('.dashboard-emotion-bar').forEach(bar => {
+      bar.style.width = bar.dataset.pct + '%';
+    });
+  }, 150);
+}
+
+function _renderDashMemory(patterns) {
+  const el = document.getElementById('dashMemoryList');
+  if (!el) return;
+
+  const top = patterns.slice(0, 3);
+  if (!top.length) {
+    el.innerHTML = `<span style="font-size:13px;color:var(--text-dim);">아직 패턴이 쌓이는 중이야.</span>`;
+    return;
+  }
+
+  el.innerHTML = top.map(p => {
+    const cat   = CATEGORIES[p.key];
+    const emoji = cat?.emoji || '📝';
+    const label = cat?.label || p.key;
+    return `
+      <div class="dashboard-memory-item">
+        <span class="dashboard-memory-topic">${emoji} ${label} 고민</span>
+        <span class="dashboard-memory-count">${p.count}회</span>
+      </div>`;
+  }).join('');
+}
+
+function _renderDashChanges(trend) {
+  const el = document.getElementById('dashChangeList');
+  if (!el || !trend) {
+    if (el) el.innerHTML = `<span style="font-size:13px;color:var(--text-dim);">기억이 쌓이면 변화가 보여.</span>`;
+    return;
+  }
+
+  const changes = [
+    { label: '불안',   key: 'anxiety',    reverse: true  },
+    { label: '실행력', key: 'action',     reverse: false },
+    { label: '기대감', key: 'hope',       reverse: false },
+  ];
+
+  el.innerHTML = changes.map(c => {
+    const t      = trend[c.key];
+    const delta  = t.now - t.old;
+    const improved = c.reverse ? delta < 0 : delta > 0;
+    const cls    = delta === 0 ? 'same' : (improved ? 'up' : 'down');
+    const sign   = delta > 0 ? '+' : '';
+    const arrow  = delta === 0 ? '→' : (improved ? '▲' : '▼');
+    return `
+      <div class="dashboard-change-item">
+        <span class="dashboard-change-label">${c.label}</span>
+        <span class="dashboard-change-delta ${cls}">${arrow}${sign}${delta}%</span>
+      </div>`;
+  }).join('');
+}
+
+function showNewQuestionForm() {
+  const expand  = document.getElementById('dashFormExpand');
+  const ctaBtn  = document.querySelector('.dashboard-cta-btn');
+  if (!expand) return;
+
+  if (expand.style.display === 'none') {
+    expand.style.display = '';
+    if (ctaBtn) ctaBtn.style.display = 'none';
+    // 퀵칩 동기화
+    if (state.category) updateDashQuickChips(state.category);
+    expand.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+function updateDashQuickChips(cat) {
+  const el = document.getElementById('dashQuickChips');
+  if (!el) return;
+  const chips = QUICK_CHIPS[cat] || QUICK_CHIPS.default;
+  el.innerHTML = chips.map(q =>
+    `<button type="button" class="quick-chip" onclick="setQuestion(this.textContent)">${q}</button>`
+  ).join('');
+}
 
 function initYearDropdown() {
   const sel = document.getElementById('birthYear');
@@ -467,13 +686,28 @@ function saveHistory() {
 
 // ==================== TEXTAREA ====================
 function initTextarea() {
-  const ta = document.getElementById('questionInput');
-  ta.addEventListener('input', () => {
-    document.getElementById('charCount').textContent = ta.value.length;
-  });
-  ta.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') startAnalysis();
-  });
+  // 게스트 홈 textarea
+  const taGuest = document.getElementById('guestQuestionInput');
+  if (taGuest) {
+    taGuest.addEventListener('input', () => {
+      const cc = document.getElementById('guestCharCount');
+      if (cc) cc.textContent = taGuest.value.length;
+    });
+    taGuest.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') startAnalysis();
+    });
+  }
+  // 대시보드 폼 textarea
+  const taDash = document.getElementById('questionInput');
+  if (taDash) {
+    taDash.addEventListener('input', () => {
+      const cc = document.getElementById('charCount');
+      if (cc) cc.textContent = taDash.value.length;
+    });
+    taDash.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') startAnalysis();
+    });
+  }
 }
 
 // ==================== INPUTS ====================
@@ -489,6 +723,7 @@ function selectCategory(chip) {
   chip.classList.add('active');
   state.category = chip.dataset.value;
   updateQuickChips(state.category);
+  updateDashQuickChips(state.category);
   saveProfile();
 }
 
@@ -501,10 +736,10 @@ function updateQuickChips(cat) {
 }
 
 function setQuestion(text) {
-  const ta = document.getElementById('questionInput');
-  ta.value = text;
-  document.getElementById('charCount').textContent = text.length;
-  ta.focus();
+  const ta = _getQuestionEl();
+  if (ta) { ta.value = text; ta.focus(); }
+  const cc = _getCharCountEl();
+  if (cc) cc.textContent = text.length;
 }
 
 // ==================== SCREEN MANAGEMENT ====================
@@ -517,7 +752,7 @@ function showScreen(name) {
   }
   if (name === 'history') { renderHistory(); updateTabActive('history'); }
   if (name === 'settings') { updateProfileDisplay(); updateTabActive(null); }
-  if (name === 'home')    updateTabActive('home');
+  if (name === 'home')    { renderHomeScreen(); updateTabActive('home'); }
   if (name === 'result')  updateTabActive(null);
   if (name === 'chat')    { updateTabActive('chat'); setTimeout(showMemoryRecallIfNeeded, 300); }
   if (name === 'memory')  { renderMemoryScreen(); updateTabActive('memory'); }
@@ -680,10 +915,10 @@ function generateNakedChatReply(text) {
 
 // ==================== ANALYSIS ====================
 function startAnalysis() {
-  state.question = document.getElementById('questionInput').value.trim();
+  state.question = (_getQuestionEl()?.value || '').trim();
   if (!state.question) {
     showToast('고민을 입력해줘 😊');
-    document.getElementById('questionInput').focus();
+    _getQuestionEl()?.focus();
     return;
   }
   saveProfile();
@@ -926,12 +1161,12 @@ function saveResult() {
 }
 
 function newQuestion() {
-  document.getElementById('questionInput').value = '';
-  document.getElementById('charCount').textContent = '0';
+  const _qi = _getQuestionEl(); if (_qi) _qi.value = '';
+  const _cc = _getCharCountEl(); if (_cc) _cc.textContent = '0';
   state.currentResult = null;
   state._viewingHistoryId = null;
   showScreen('home');
-  setTimeout(() => document.getElementById('questionInput').focus(), 300);
+  setTimeout(() => _getQuestionEl()?.focus(), 300);
 }
 
 // ==================== HISTORY ====================

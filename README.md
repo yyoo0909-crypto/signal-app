@@ -205,6 +205,7 @@ risk   범위: 8  ~ 80%
 - [x] Signal Journey — 변화 여정 타임라인 ✅ v2.0.0
 - [x] Signal Compass — 선택지 방향 분석 ✅ v2.0.0
 - [x] 탭 구조 재편 (Home/Chat/Memory/Journey/Compass) ✅ v2.0.0
+- [x] 로그인 홈 대시보드 (Signal이 날 알고 있는 상태) ✅ v2.1.0
 - [ ] Signal Memory — 서버 동기화 (현재 로컬스토리지)
 - [ ] 영어 버전 글로벌 확장
 - [ ] 주간 패턴 리포트
@@ -229,6 +230,16 @@ Signal은 다음 용도의 사용을 엄격히 금지합니다:
 ---
 
 ## 📋 파일 수정 이력
+
+### v2.1.0 — 로그인 홈 대시보드 (Signal이 날 알고 있는 상태)
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| `index.html` | `signalDashboard` (로그인 홈) + `guestHome` (비로그인 홈) 분리. 오늘의 Signal / 감정 상태 / 기억 / 변화 / CTA 구성 |
+| `css/style.css` | `.signal-home-dashboard`, `.dashboard-card`, `.today-signal-card`, `.dashboard-emotion-*`, `.dashboard-memory-*`, `.dashboard-change-*`, `.dashboard-cta-btn` 스타일 추가 |
+| `js/app.js` | `renderHomeScreen()` — 이름+기억 유무로 대시보드/게스트 전환. `_renderDashboard()`, `_renderTodaySignal()`, `_renderDashEmotions()`, `_renderDashMemory()`, `_renderDashChanges()`, `showNewQuestionForm()` 추가. `_getQuestionEl()` 헬퍼로 textarea 충돌 방지 |
+
+---
 
 ### v2.0.0 — Signal Life OS (Journey + Compass + 탭 재구성)
 
