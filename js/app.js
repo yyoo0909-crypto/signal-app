@@ -823,7 +823,6 @@ async function sendChatPage() {
   input.disabled = true;
 
   appendChatPageMsg('user', text);
-  CHAT_CONTEXT.history.push({ role: 'user', text });
 
   // typing indicator
   const typingId = showChatPageTyping();
@@ -834,6 +833,7 @@ async function sendChatPage() {
   if (LLM_ENABLED) {
     reply = await _callLlmApi(text, CHAT_CONTEXT.result, CHAT_CONTEXT.history);
   }
+  CHAT_CONTEXT.history.push({ role: 'user', text });
 
   // ── fallback ──
   if (!reply) {
